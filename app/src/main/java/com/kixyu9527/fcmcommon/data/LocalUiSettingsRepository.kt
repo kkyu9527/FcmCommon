@@ -39,8 +39,10 @@ class LocalUiSettingsRepository(context: Context) {
         updateSettings(mutableSettings.value.copy(showDisabledApps = enabled))
     }
 
-    fun setShowVersionNameInList(enabled: Boolean) {
-        updateSettings(mutableSettings.value.copy(showVersionNameInList = enabled))
+    fun markInitialScanCompleted() {
+        if (!mutableSettings.value.hasCompletedInitialScan) {
+            updateSettings(mutableSettings.value.copy(hasCompletedInitialScan = true))
+        }
     }
 
     private fun loadSettings(): UiSettings = UiSettings(
@@ -58,8 +60,8 @@ class LocalUiSettingsRepository(context: Context) {
             true,
         ),
         showDisabledApps = preferences.getBoolean(ConfigKeys.KeyShowDisabledApps, true),
-        showVersionNameInList = preferences.getBoolean(
-            ConfigKeys.KeyShowVersionNameInList,
+        hasCompletedInitialScan = preferences.getBoolean(
+            ConfigKeys.KeyHasCompletedInitialScan,
             false,
         ),
     )
@@ -79,8 +81,8 @@ class LocalUiSettingsRepository(context: Context) {
             )
             putBoolean(ConfigKeys.KeyShowDisabledApps, updated.showDisabledApps)
             putBoolean(
-                ConfigKeys.KeyShowVersionNameInList,
-                updated.showVersionNameInList,
+                ConfigKeys.KeyHasCompletedInitialScan,
+                updated.hasCompletedInitialScan,
             )
         }
         mutableSettings.value = updated

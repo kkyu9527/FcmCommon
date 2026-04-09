@@ -1,5 +1,6 @@
 package com.kixyu9527.fcmcommon.xposed.legacy;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -415,6 +416,7 @@ public class HyperOsSystemFix extends LegacyHookModule {
         return "Google Play 服务发出了 FCM 已断开广播。";
     }
 
+    @SuppressLint({"PrivateApi", "WrongConstant"})
     private void tryAddTemporaryAllowList(Field contextField, Object activityManagerService, String packageName) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             return;

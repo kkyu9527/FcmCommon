@@ -43,11 +43,6 @@ fun OverviewPage(
         moduleReady -> "模块已生效"
         else -> "等待生效"
     }
-    val statusDetail = when {
-        working -> "模块桥接和 FCM 心跳都已就绪，当前可以持续接收推送。"
-        moduleReady -> "模块桥接已经建立，正在等待 Google Play 服务同步最新心跳状态。"
-        else -> uiState.connection.detail
-    }
 
     PageList(
         state = listState,
@@ -96,45 +91,12 @@ fun OverviewPage(
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.SemiBold,
                                 )
-                                Text(
-                                    text = uiState.connection.headline,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
                             }
                         }
                         StatusPill(
                             label = if (uiState.connection.hasRemotePreferences) "已同步" else "待同步",
                             background = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                             foreground = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    Text(
-                        text = statusDetail,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        StatusPill(
-                            label = if (uiState.fcmDiagnosticsConnected) {
-                                "FCM 在线 ${uiState.fcmDiagnosticsDurationLabel}"
-                            } else {
-                                "FCM 未确认"
-                            },
-                            background = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                            foreground = MaterialTheme.colorScheme.secondary,
-                        )
-                        StatusPill(
-                            label = "${uiState.scopeStatuses.count { it.active }}/${uiState.scopeStatuses.size} 个作用域已就绪",
-                            background = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-                            foreground = MaterialTheme.colorScheme.onSurface,
-                        )
-                        StatusPill(
-                            label = "${uiState.trackedAppsCount} 个白名单应用",
-                            background = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-                            foreground = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                     FlowRow(

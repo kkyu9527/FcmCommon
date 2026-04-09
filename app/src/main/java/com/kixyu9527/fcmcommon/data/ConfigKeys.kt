@@ -14,7 +14,7 @@ object ConfigKeys {
     const val KeyShowSystemApps = "show_system_apps"
     const val KeyShowPackageNameInList = "show_package_name_in_list"
     const val KeyShowDisabledApps = "show_disabled_apps"
-    const val KeyShowVersionNameInList = "show_version_name_in_list"
+    const val KeyHasCompletedInitialScan = "has_completed_initial_scan"
     const val KeyConnectionEvents = "connection_events"
     const val KeyFcmDiagnosticsConnected = "fcm_diagnostics_connected"
     const val KeyFcmDiagnosticsConnectedSince = "fcm_diagnostics_connected_since"

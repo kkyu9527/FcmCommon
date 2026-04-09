@@ -127,7 +127,7 @@ fun BoxScope.FloatingCapsuleBottomBar(
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag(TestTags.BottomBar),
         contentAlignment = Alignment.Center,
     ) {
@@ -160,7 +160,7 @@ fun BoxScope.FloatingCapsuleBottomBar(
                             ),
                         ),
                     )
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 bottomBarItems().forEach { item ->
@@ -187,7 +187,7 @@ private fun RowScope.CapsuleNavItem(
         } else {
             Color.Transparent
         },
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 320),
         label = "nav_item_color",
     )
     val contentColor by animateColorAsState(
@@ -196,7 +196,7 @@ private fun RowScope.CapsuleNavItem(
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 320),
         label = "nav_content_color",
     )
 
@@ -213,8 +213,8 @@ private fun RowScope.CapsuleNavItem(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 54.dp)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .heightIn(min = 46.dp)
+                .padding(horizontal = 8.dp, vertical = 5.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -225,7 +225,7 @@ private fun RowScope.CapsuleNavItem(
             )
             Text(
                 text = item.label,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = contentColor,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,

@@ -1,5 +1,6 @@
 package com.kixyu9527.fcmcommon.xposed.compat;
 
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -74,6 +75,7 @@ public class IceboxUtils extends BroadcastReceiver {
         context.getContentResolver().call(PERMISSION_URI, "set_enable", null, extra);
     }
 
+    @SuppressLint("MissingPermission")
     public static void activeApp(Context context, String packageName) {
         try {
             if (!isIceBoxWorking) {

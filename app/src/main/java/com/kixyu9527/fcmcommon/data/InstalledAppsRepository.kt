@@ -4,8 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.InstallSourceInfo
-import android.content.pm.PackageManager
 import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -33,6 +33,8 @@ data class InstalledAppInfo(
 class InstalledAppsRepository(
     private val context: Context,
 ) {
+    fun canReadInstalledApps(): Boolean = true
+
     suspend fun loadInstalledApps(): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
         val packageManager = context.packageManager
         val pushPackages = detectPushPackages(packageManager)
@@ -51,13 +53,9 @@ class InstalledAppsRepository(
                     isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
                     hasPushSupport = appInfo.packageName in pushPackages,
                     versionName = packageInfo?.versionName.orEmpty().ifBlank { "-" },
-                    versionCode = packageInfo?.longVersionCode ?: 0L,
+                    versionCode = packageInfo?.toVersionCode() ?: 0L,
                     targetSdkVersion = appInfo.targetSdkVersion,
-                    minSdkVersion = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        appInfo.minSdkVersion
-                    } else {
-                        null
-                    },
+                    minSdkVersion = appInfo.minSdkVersion,
                     firstInstallTime = packageInfo?.firstInstallTime ?: 0L,
                     lastUpdateTime = packageInfo?.lastUpdateTime ?: 0L,
                     installerPackageName = resolveInstallerPackageName(
@@ -167,5 +165,14 @@ class InstalledAppsRepository(
         } else {
             packageManager.queryBroadcastReceivers(intent, PackageManager.MATCH_DISABLED_COMPONENTS)
         }
+    }
+}
+
+private fun PackageInfo.toVersionCode(): Long {
+    @Suppress("DEPRECATION")
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        longVersionCode
+    } else {
+        versionCode.toLong()
     }
 }

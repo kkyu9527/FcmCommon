@@ -18,7 +18,6 @@ fun AppPreferencesPage(
     onShowSystemAppsChanged: (Boolean) -> Unit,
     onShowPackageNameInListChanged: (Boolean) -> Unit,
     onShowDisabledAppsChanged: (Boolean) -> Unit,
-    onShowVersionNameInListChanged: (Boolean) -> Unit,
 ) {
     PageList(
         state = listState,
@@ -62,13 +61,6 @@ fun AppPreferencesPage(
                         summary = "关闭后会隐藏已经停用或冻结的应用",
                         checked = uiState.showDisabledApps,
                         onCheckedChange = onShowDisabledAppsChanged,
-                    )
-                    SectionDivider()
-                    PreferenceToggleLine(
-                        title = "列表显示版本",
-                        summary = "在应用列表中显示版本名称，便于区分测试版与正式版",
-                        checked = uiState.showVersionNameInList,
-                        onCheckedChange = onShowVersionNameInListChanged,
                     )
                 }
             }

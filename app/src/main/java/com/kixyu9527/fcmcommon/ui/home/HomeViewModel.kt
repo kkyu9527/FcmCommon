@@ -89,7 +89,6 @@ data class AppRowModel(
     val isSystemApp: Boolean,
     val isAllowed: Boolean,
     val isEnabled: Boolean,
-    val versionName: String,
 )
 
 data class AppDetailInfoModel(
@@ -137,7 +136,7 @@ data class HomeUiState(
     val showSystemApps: Boolean = false,
     val showPackageNameInList: Boolean = true,
     val showDisabledApps: Boolean = true,
-    val showVersionNameInList: Boolean = false,
+    val canReadInstalledApps: Boolean = true,
     val appsLoading: Boolean = false,
     val appsScanned: Boolean = false,
     val trackedAppsCount: Int = 0,
@@ -188,6 +187,7 @@ private data class NavigationSeed(
 
 private data class RuntimeSeed(
     val apps: List<InstalledAppInfo>,
+    val canReadInstalledApps: Boolean,
     val appsLoading: Boolean,
     val appsScanned: Boolean,
     val nowElapsedRealtime: Long,
@@ -197,6 +197,7 @@ private data class RuntimeSeed(
 
 private data class AppRuntimeSeed(
     val apps: List<InstalledAppInfo>,
+    val canReadInstalledApps: Boolean,
     val appsLoading: Boolean,
     val appsScanned: Boolean,
 )
@@ -218,13 +219,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val eventTimeFormatter = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA)
     private val appTimeFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
     private val initialSettings = uiSettingsRepository.settings.value
+    private val initialAppsPermissionGranted = appsRepository.canReadInstalledApps()
+    private val shouldBootstrapScan =
+        initialSettings.autoRefreshAppsOnLaunch || !initialSettings.hasCompletedInitialScan
 
     private val selectedPage = MutableStateFlow(AppPage.Overview)
     private val secondaryPage = MutableStateFlow<SecondaryPage?>(null)
     private val selectedAppPackage = MutableStateFlow<String?>(null)
     private val searchQuery = MutableStateFlow("")
+    private val appsPermissionGranted = MutableStateFlow(initialAppsPermissionGranted)
     private val installedApps = MutableStateFlow<List<InstalledAppInfo>>(emptyList())
-    private val appsLoading = MutableStateFlow(initialSettings.autoRefreshAppsOnLaunch)
+    private val appsLoading = MutableStateFlow(shouldBootstrapScan && initialAppsPermissionGranted)
     private val appsScanned = MutableStateFlow(false)
     private val clockNow = MutableStateFlow(SystemClock.elapsedRealtime())
     private val wallClockNow = MutableStateFlow(System.currentTimeMillis())
@@ -264,11 +269,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appRuntimeSeed = combine(
         installedApps,
+        appsPermissionGranted,
         appsLoading,
         appsScanned,
-    ) { apps, loading, scanned ->
+    ) { apps, canReadInstalledApps, loading, scanned ->
         AppRuntimeSeed(
             apps = apps,
+            canReadInstalledApps = canReadInstalledApps,
             appsLoading = loading,
             appsScanned = scanned,
         )
@@ -292,6 +299,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     ) { appRuntime, clock ->
         RuntimeSeed(
             apps = appRuntime.apps,
+            canReadInstalledApps = appRuntime.canReadInstalledApps,
             appsLoading = appRuntime.appsLoading,
             appsScanned = appRuntime.appsScanned,
             nowElapsedRealtime = clock.nowElapsedRealtime,
@@ -317,7 +325,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isSystemApp = installed.isSystemApp,
                     isAllowed = installed.packageName in seed.allowList,
                     isEnabled = installed.isEnabled,
-                    versionName = installed.versionName,
                 )
             }
             .filter { item ->
@@ -396,7 +403,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             showSystemApps = seed.settings.showSystemApps,
             showPackageNameInList = seed.settings.showPackageNameInList,
             showDisabledApps = seed.settings.showDisabledApps,
-            showVersionNameInList = seed.settings.showVersionNameInList,
+            canReadInstalledApps = runtime.canReadInstalledApps,
             appsLoading = loading,
             appsScanned = scanned,
             trackedAppsCount = seed.allowList.size,
@@ -430,17 +437,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             showSystemApps = initialSettings.showSystemApps,
             showPackageNameInList = initialSettings.showPackageNameInList,
             showDisabledApps = initialSettings.showDisabledApps,
-            showVersionNameInList = initialSettings.showVersionNameInList,
+            canReadInstalledApps = initialAppsPermissionGranted,
             overviewStats = buildOverviewStats(
                 connection = XposedServiceState.bootstrap(),
                 enabledFeatureCount = FeatureKey.defaultEnabledSet.size,
                 trackedAppsCount = 0,
                 pushCandidateCount = 0,
-                appsLoading = initialSettings.autoRefreshAppsOnLaunch,
+                appsLoading = shouldBootstrapScan && initialAppsPermissionGranted,
                 appsScanned = false,
             ),
             scopeStatuses = scopeStatuses(XposedServiceState.bootstrap()),
-            appsLoading = initialSettings.autoRefreshAppsOnLaunch,
+            appsLoading = shouldBootstrapScan && initialAppsPermissionGranted,
             connectionDurationLabel = "未连接",
             connectionSummary = "暂无记录",
             fcmDiagnosticsDurationLabel = "未连接",
@@ -451,6 +458,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         startClockTicker()
         bootstrapRefresh()
+    }
+
+    fun onHostResumed() {
+        viewModelScope.launch {
+            refreshAppsPermissionState(triggerScanIfNeeded = shouldBootstrapScan)
+        }
     }
 
     fun selectPage(page: AppPage) {
@@ -502,7 +515,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoRefreshAppsOnLaunch(enabled: Boolean) {
         viewModelScope.launch {
             uiSettingsRepository.setAutoRefreshAppsOnLaunch(enabled)
-            if (enabled && !appsScanned.value && !appsLoading.value) {
+            if (enabled && appsPermissionGranted.value && !appsScanned.value && !appsLoading.value) {
                 refreshAppsInternal()
             }
         }
@@ -523,12 +536,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowDisabledApps(enabled: Boolean) {
         viewModelScope.launch {
             uiSettingsRepository.setShowDisabledApps(enabled)
-        }
-    }
-
-    fun setShowVersionNameInList(enabled: Boolean) {
-        viewModelScope.launch {
-            uiSettingsRepository.setShowVersionNameInList(enabled)
         }
     }
 
@@ -556,24 +563,28 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshAll() {
         viewModelScope.launch {
             configRepository.refresh()
-            refreshAppsInternal()
+            if (appsPermissionGranted.value) {
+                refreshAppsInternal()
+            } else {
+                refreshAppsPermissionState(triggerScanIfNeeded = true)
+            }
         }
     }
 
     fun refreshApps() {
         viewModelScope.launch {
-            refreshAppsInternal()
+            if (appsPermissionGranted.value) {
+                refreshAppsInternal()
+            } else {
+                refreshAppsPermissionState(triggerScanIfNeeded = true)
+            }
         }
     }
 
     private fun bootstrapRefresh() {
         viewModelScope.launch {
             configRepository.refresh()
-            if (initialSettings.autoRefreshAppsOnLaunch) {
-                refreshAppsInternal()
-            } else {
-                appsLoading.value = false
-            }
+            refreshAppsPermissionState(triggerScanIfNeeded = shouldBootstrapScan)
         }
     }
 
@@ -597,6 +608,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         appsScanned.value = true
         appsLoading.value = false
+        uiSettingsRepository.markInitialScanCompleted()
+    }
+
+    private suspend fun refreshAppsPermissionState(triggerScanIfNeeded: Boolean) {
+        val granted = appsRepository.canReadInstalledApps()
+        appsPermissionGranted.value = granted
+        if (!granted) {
+            installedApps.value = emptyList()
+            appsScanned.value = false
+            appsLoading.value = false
+            return
+        }
+        if (triggerScanIfNeeded && !appsLoading.value && !appsScanned.value) {
+            refreshAppsInternal()
+        }
     }
 
     private fun buildOverviewStats(

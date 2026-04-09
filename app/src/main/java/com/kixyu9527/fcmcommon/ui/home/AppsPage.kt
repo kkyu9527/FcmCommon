@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -87,7 +86,6 @@ fun AppsPage(
                 AppRow(
                     app = app,
                     showPackageName = uiState.showPackageNameInList,
-                    showVersionName = uiState.showVersionNameInList,
                     onClick = { onOpenAppDetails(app.packageName) },
                     onAllowedChanged = { allowed ->
                         onAppAllowedChanged(app.packageName, allowed)
@@ -213,7 +211,6 @@ private fun AppsToolbarCard(
 private fun AppRow(
     app: AppRowModel,
     showPackageName: Boolean,
-    showVersionName: Boolean,
     onClick: () -> Unit,
     onAllowedChanged: (Boolean) -> Unit,
 ) {
@@ -229,7 +226,7 @@ private fun AppRow(
 
     PageCard(
         modifier = Modifier.testTag(TestTags.appRow(app.packageName)),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -248,8 +245,8 @@ private fun AppRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(
-                        modifier = Modifier.size(44.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         tonalElevation = 0.dp,
@@ -258,21 +255,21 @@ private fun AppRow(
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
-                                modifier = Modifier.padding(7.dp),
+                                modifier = Modifier.padding(6.dp),
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Outlined.Apps,
                                 contentDescription = null,
-                                modifier = Modifier.padding(10.dp),
+                                modifier = Modifier.padding(9.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
                             text = app.label,
@@ -290,15 +287,6 @@ private fun AppRow(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        if (showVersionName) {
-                            Text(
-                                text = "版本 ${app.versionName}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                         if (metadata.isNotBlank()) {
                             Text(
                                 text = metadata,
@@ -309,12 +297,6 @@ private fun AppRow(
                             )
                         }
                     }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
-                        contentDescription = null,
-                        modifier = Modifier.padding(start = 8.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
             Spacer(modifier = Modifier.width(10.dp))

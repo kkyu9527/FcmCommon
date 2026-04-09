@@ -7,5 +7,5 @@ data class UiSettings(
     val showSystemApps: Boolean = false,
     val showPackageNameInList: Boolean = true,
     val showDisabledApps: Boolean = true,
-    val showVersionNameInList: Boolean = false,
+    val hasCompletedInitialScan: Boolean = false,
 )
