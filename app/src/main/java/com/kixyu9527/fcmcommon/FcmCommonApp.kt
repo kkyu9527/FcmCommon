@@ -14,6 +14,7 @@ class FcmCommonApp : Application() {
         super.onCreate()
         val deviceContext = createDeviceProtectedStorageContext()
         deviceContext.moveSharedPreferencesFrom(this, ConfigKeys.LocalPrefsName)
+        deviceContext.moveSharedPreferencesFrom(this, ConfigKeys.UiPrefsName)
         container
     }
 }

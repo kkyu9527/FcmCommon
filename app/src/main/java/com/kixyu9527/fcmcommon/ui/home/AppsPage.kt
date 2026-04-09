@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,15 +40,18 @@ import com.kixyu9527.fcmcommon.ui.TestTags
 
 @Composable
 fun AppsPage(
+    listState: LazyListState,
     uiState: HomeUiState,
     onSearchQueryChanged: (String) -> Unit,
     onOnlyPushAppsChanged: (Boolean) -> Unit,
     onAppAllowedChanged: (String, Boolean) -> Unit,
+    onOpenAppDetails: (String) -> Unit,
     onAllowPushCandidates: () -> Unit,
     onClearAllowList: () -> Unit,
     onRefreshApps: () -> Unit,
 ) {
     PageList(
+        state = listState,
         modifier = Modifier
             .testTag(TestTags.AppsList)
             .testTag(TestTags.PageApps),
@@ -64,11 +70,15 @@ fun AppsPage(
         if (uiState.appRows.isEmpty()) {
             item {
                 EmptyStateCard(
-                    title = if (uiState.appsLoading) "正在扫描应用" else "没有匹配结果",
-                    body = if (uiState.appsLoading) {
-                        "正在识别可能使用 FCM 的应用。"
-                    } else {
-                        "修改搜索条件或重新扫描后再试。"
+                    title = when {
+                        uiState.appsLoading -> "正在扫描应用"
+                        !uiState.appsScanned -> "尚未扫描应用"
+                        else -> "没有匹配结果"
+                    },
+                    body = when {
+                        uiState.appsLoading -> "正在识别可能使用 FCM 的应用。"
+                        !uiState.appsScanned -> "点击重新扫描后，会自动识别使用 FCM 的应用。"
+                        else -> "修改搜索条件或重新扫描后再试。"
                     },
                 )
             }
@@ -76,6 +86,9 @@ fun AppsPage(
             items(uiState.appRows, key = { it.packageName }) { app ->
                 AppRow(
                     app = app,
+                    showPackageName = uiState.showPackageNameInList,
+                    showVersionName = uiState.showVersionNameInList,
+                    onClick = { onOpenAppDetails(app.packageName) },
                     onAllowedChanged = { allowed ->
                         onAppAllowedChanged(app.packageName, allowed)
                     },
@@ -94,11 +107,21 @@ private fun AppsToolbarCard(
     onClearAllowList: () -> Unit,
     onRefreshApps: () -> Unit,
 ) {
+    val subtitle = buildString {
+        append("白名单 ${uiState.trackedAppsCount}")
+        append(" · ")
+        if (uiState.appsScanned || uiState.appsLoading) {
+            append("候选 ${uiState.pushCandidateCount}")
+        } else {
+            append("未扫描")
+        }
+    }
+
     PageCard {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeader(
                 title = "应用白名单",
-                subtitle = "白名单 ${uiState.trackedAppsCount} · 候选 ${uiState.pushCandidateCount}",
+                subtitle = subtitle,
             )
             OutlinedTextField(
                 value = uiState.appSearchQuery,
@@ -107,7 +130,7 @@ private fun AppsToolbarCard(
                     .fillMaxWidth()
                     .testTag(TestTags.AppsSearchField),
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.Search,
@@ -118,11 +141,19 @@ private fun AppsToolbarCard(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f),
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                    cursorColor = MaterialTheme.colorScheme.primary,
                 ),
             )
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 0.dp,
             ) {
                 Row(
@@ -136,6 +167,7 @@ private fun AppsToolbarCard(
                         Text(
                             text = "仅显示推送候选",
                             style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = "优先显示检测到 FCM 组件的应用",
@@ -167,7 +199,7 @@ private fun AppsToolbarCard(
                     onClick = onAllowPushCandidates,
                 )
                 StatusPill(
-                    label = "清空",
+                    label = "清空白名单",
                     background = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
                     foreground = MaterialTheme.colorScheme.onSurface,
                     onClick = onClearAllowList,
@@ -180,6 +212,9 @@ private fun AppsToolbarCard(
 @Composable
 private fun AppRow(
     app: AppRowModel,
+    showPackageName: Boolean,
+    showVersionName: Boolean,
+    onClick: () -> Unit,
     onAllowedChanged: (Boolean) -> Unit,
 ) {
     val iconBitmap = remember(app.packageName, app.icon) {
@@ -188,67 +223,98 @@ private fun AppRow(
     val metadata = buildList {
         if (app.hasPushSupport) add("推送候选")
         if (app.isSystemApp) add("系统应用")
+        if (!app.isEnabled) add("已停用")
         if (app.isAllowed) add("已加入")
     }.joinToString(" · ")
 
-    PageCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+    PageCard(
+        modifier = Modifier.testTag(TestTags.appRow(app.packageName)),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
+            Surface(
+                onClick = onClick,
                 modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
+                color = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 0.dp,
             ) {
-                Surface(
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-                    tonalElevation = 0.dp,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (iconBitmap != null) {
-                        Image(
-                            bitmap = iconBitmap,
-                            contentDescription = null,
-                            modifier = Modifier.padding(7.dp),
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Apps,
-                            contentDescription = null,
-                            modifier = Modifier.padding(10.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Surface(
+                        modifier = Modifier.size(44.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        tonalElevation = 0.dp,
+                    ) {
+                        if (iconBitmap != null) {
+                            Image(
+                                bitmap = iconBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.padding(7.dp),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Apps,
+                                contentDescription = null,
+                                modifier = Modifier.padding(10.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Text(
-                        text = app.label,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = app.packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (metadata.isNotBlank()) {
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
                         Text(
-                            text = metadata,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = app.label,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        if (showPackageName) {
+                            Text(
+                                text = app.packageName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (showVersionName) {
+                            Text(
+                                text = "版本 ${app.versionName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (metadata.isNotBlank()) {
+                            Text(
+                                text = metadata,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 8.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             Spacer(modifier = Modifier.width(10.dp))

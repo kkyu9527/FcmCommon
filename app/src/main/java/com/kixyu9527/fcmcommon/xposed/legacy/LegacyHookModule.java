@@ -145,6 +145,48 @@ public abstract class LegacyHookModule {
         }
     }
 
+    protected static void recordFcmDiagnosticsState(boolean connected, String detail) {
+        if (context == null) {
+            return;
+        }
+        try {
+            Context packageContext = context
+                .createPackageContext("com.kixyu9527.fcmcommon", 0)
+                .createDeviceProtectedStorageContext();
+            SharedPreferences preferences = packageContext.getSharedPreferences(
+                ConfigKeys.ConnectionPrefsName,
+                Context.MODE_PRIVATE
+            );
+            long now = System.currentTimeMillis();
+            long currentConnectedSince = preferences.getLong(ConfigKeys.KeyFcmDiagnosticsConnectedSince, 0L);
+            if (connected && currentConnectedSince <= 0L) {
+                currentConnectedSince = now;
+            }
+            preferences.edit()
+                .putBoolean(ConfigKeys.KeyFcmDiagnosticsConnected, connected)
+                .putLong(
+                    ConfigKeys.KeyFcmDiagnosticsConnectedSince,
+                    connected ? currentConnectedSince : 0L
+                )
+                .putLong(ConfigKeys.KeyFcmDiagnosticsLastEventAt, now)
+                .putString(
+                    ConfigKeys.KeyFcmDiagnosticsLastEventTitle,
+                    connected ? "FCM 已连接" : "FCM 已断开"
+                )
+                .putString(
+                    ConfigKeys.KeyFcmDiagnosticsLastEventDetail,
+                    detail != null && !detail.trim().isEmpty()
+                        ? detail
+                        : (connected
+                            ? "Google Play 服务已建立 FCM 连接。"
+                            : "Google Play 服务的 FCM 连接已断开。")
+                )
+                .apply();
+        } catch (Throwable throwable) {
+            printLog("记录 FCM Diagnostics 状态失败: " + throwable.getMessage());
+        }
+    }
+
     protected void checkUserDeviceUnlockAndUpdateConfig() {
         if (context != null && context.getSystemService(UserManager.class).isUserUnlocked()) {
             onUpdateConfig();
