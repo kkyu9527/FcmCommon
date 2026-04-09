@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FcmCommon</string>
+    <string name="xposed_description">HyperOS-first FCM repair module with a Compose control surface and staged hook migration.</string>
+</resources>
