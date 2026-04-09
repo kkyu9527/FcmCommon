@@ -7,33 +7,33 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val DarkColorScheme = darkColorScheme(
-    primary = NightClay,
-    secondary = MossSoft,
-    tertiary = SandDeep,
-    background = NightForest,
+    primary = NightPrimary,
+    secondary = NightSecondary,
+    tertiary = NightSurfaceAlt,
+    background = NightBackground,
     surface = NightSurface,
     surfaceVariant = NightSurfaceAlt,
     onPrimary = Ink,
-    onSecondary = NightMist,
-    onTertiary = Ink,
-    onBackground = NightMist,
-    onSurface = NightMist,
-    onSurfaceVariant = SandDeep,
+    onSecondary = Ink,
+    onTertiary = NightText,
+    onBackground = NightText,
+    onSurface = NightText,
+    onSurfaceVariant = NightText.copy(alpha = 0.72f),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Moss,
-    secondary = Clay,
-    tertiary = SandDeep,
-    background = SandLight,
-    surface = Mist,
-    surfaceVariant = SandDeep,
-    onPrimary = Mist,
-    onSecondary = Mist,
+    primary = AccentBlue,
+    secondary = AccentMint,
+    tertiary = AccentSky,
+    background = Cloud,
+    surface = CardWhite,
+    surfaceVariant = Frost,
+    onPrimary = CardWhite,
+    onSecondary = CardWhite,
     onTertiary = Ink,
     onBackground = Ink,
     onSurface = Ink,
-    onSurfaceVariant = Ink,
+    onSurfaceVariant = Ink.copy(alpha = 0.62f),
 )
 
 @Composable

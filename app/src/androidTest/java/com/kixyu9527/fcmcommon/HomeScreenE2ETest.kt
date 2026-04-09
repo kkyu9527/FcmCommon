@@ -24,6 +24,7 @@ class HomeScreenE2ETest {
     @Before
     fun resetLocalDraft() {
         ApplicationProvider.getApplicationContext<android.content.Context>()
+            .createDeviceProtectedStorageContext()
             .getSharedPreferences("fcmcommon.config", android.content.Context.MODE_PRIVATE)
             .edit()
             .clear()
@@ -31,22 +32,46 @@ class HomeScreenE2ETest {
     }
 
     @Test
-    fun homeScreen_exposesRuntimeAndDiagnostics() {
-        composeRule.onNodeWithTag(TestTags.HomeList).assertIsDisplayed()
-        composeRule.onNodeWithTag(TestTags.ConnectionHeadline).assertIsDisplayed()
-        composeRule.onNodeWithTag(TestTags.DiagnosticsCard).performScrollTo().assertIsDisplayed()
+    fun navigation_switchesBetweenPages() {
+        composeRule.onNodeWithTag(TestTags.Header).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.BottomBar).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.PageOverview).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(TestTags.navItem("apps")).performClick()
+        composeRule.onNodeWithTag(TestTags.PageApps).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.AppsSearchField).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(TestTags.navItem("diagnostics")).performClick()
+        composeRule.onNodeWithTag(TestTags.PageDiagnostics).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.DiagnosticsCard).assertIsDisplayed()
     }
 
     @Test
     fun keepNotifications_togglePersistsAcrossRecreate() {
         val toggleTag = TestTags.featureToggle(FeatureKey.KeepNotifications)
 
+        composeRule.onNodeWithTag(TestTags.navItem("features")).performClick()
+        composeRule.onNodeWithTag(TestTags.PageFeatures).assertIsDisplayed()
         composeRule.onNodeWithTag(toggleTag).performScrollTo().assertIsOff()
         composeRule.onNodeWithTag(toggleTag).performClick()
         composeRule.onNodeWithTag(toggleTag).assertIsOn()
 
         composeRule.activityRule.scenario.recreate()
 
+        composeRule.onNodeWithTag(TestTags.navItem("features")).performClick()
+        composeRule.onNodeWithTag(toggleTag).performScrollTo().assertIsOn()
+    }
+
+    @Test
+    fun recommendedPreset_restoresDefaultFeatureState() {
+        val toggleTag = TestTags.featureToggle(FeatureKey.PowerKeeperBypass)
+
+        composeRule.onNodeWithTag(TestTags.navItem("features")).performClick()
+        composeRule.onNodeWithTag(toggleTag).performScrollTo().assertIsOn()
+        composeRule.onNodeWithTag(toggleTag).performClick()
+        composeRule.onNodeWithTag(toggleTag).assertIsOff()
+
+        composeRule.onNodeWithTag(TestTags.ActionApplyRecommended).performScrollTo().performClick()
         composeRule.onNodeWithTag(toggleTag).performScrollTo().assertIsOn()
     }
 }

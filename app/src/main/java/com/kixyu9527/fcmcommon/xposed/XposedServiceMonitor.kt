@@ -17,8 +17,8 @@ data class XposedServiceState(
     companion object {
         fun bootstrap(): XposedServiceState = XposedServiceState(
             isConnected = false,
-            headline = "Waiting for Xposed service",
-            detail = "The Compose console is ready. Binding will appear after LSPosed loads the module process.",
+            headline = "等待模块连接",
+            detail = "请确认已在 LSPosed 启用 FcmCommon 并勾选作用域。",
             hasRemotePreferences = false,
             activeScopes = ModuleScope.defaultScopes,
         )
@@ -35,16 +35,17 @@ class XposedServiceMonitor {
                 object : XposedServiceHelper.OnServiceListener {
                     override fun onServiceBind(service: XposedService) {
                         val remotePreferencesReady = runCatching {
-                            service.getRemotePreferences("config") != null
+                            service.getRemotePreferences("config")
+                            true
                         }.getOrDefault(false)
 
                         mutableState.value = XposedServiceState(
                             isConnected = true,
-                            headline = "Xposed bridge connected",
+                            headline = "模块已连接",
                             detail = if (remotePreferencesReady) {
-                                "Remote preferences are available. The UI can now evolve into a full module console."
+                                "当前配置已同步到模块作用域。"
                             } else {
-                                "Bridge connected, but remote preferences are not mounted yet."
+                                "模块已连接，但配置桥接暂未就绪。"
                             },
                             hasRemotePreferences = remotePreferencesReady,
                             activeScopes = ModuleScope.defaultScopes,
@@ -59,9 +60,9 @@ class XposedServiceMonitor {
         }.onFailure { throwable ->
             mutableState.value = XposedServiceState(
                 isConnected = false,
-                headline = "Xposed service unavailable",
+                headline = "无法连接模块服务",
                 detail = throwable.message
-                    ?: "LibXposed service helper is not available in this process.",
+                    ?: "当前进程里没有可用的 LibXposed 服务接口。",
                 hasRemotePreferences = false,
                 activeScopes = ModuleScope.defaultScopes,
             )
