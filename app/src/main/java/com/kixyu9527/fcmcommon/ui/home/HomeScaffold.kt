@@ -1,15 +1,9 @@
 package com.kixyu9527.fcmcommon.ui.home
 
 import androidx.activity.BackEventCompat
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,6 +12,8 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -27,8 +23,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -38,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.kixyu9527.fcmcommon.data.AppThemeMode
 import com.kixyu9527.fcmcommon.data.FeatureKey
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 private val PredictiveBackEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 private val SecondaryPageEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
@@ -82,19 +78,6 @@ fun HomeScaffold(
     val featureSettingsListState = rememberLazyListState()
     val diagnosticsListState = rememberLazyListState()
     val appDetailsListState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-
-    val activeListState = when (val secondary = uiState.secondaryPage) {
-        SecondaryPage.AppPreferences -> appPreferencesListState
-        SecondaryPage.Features -> featureSettingsListState
-        SecondaryPage.Diagnostics -> diagnosticsListState
-        is SecondaryPage.AppDetails -> appDetailsListState
-        null -> when (uiState.selectedPage) {
-            AppPage.Overview -> overviewListState
-            AppPage.Apps -> appsListState
-            AppPage.Settings -> settingsListState
-        }
-    }
 
     LaunchedEffect(uiState.secondaryPage) {
         if (uiState.secondaryPage is SecondaryPage.AppDetails) {
@@ -111,15 +94,6 @@ fun HomeScaffold(
                 title = uiState.headerTitle,
                 canNavigateBack = uiState.canNavigateBack,
                 onNavigateBack = onNavigateBack,
-                onDoubleTapHeader = {
-                    coroutineScope.launch {
-                        if (activeListState.firstVisibleItemIndex > 0 ||
-                            activeListState.firstVisibleItemScrollOffset > 0
-                        ) {
-                            activeListState.animateScrollToItem(0)
-                        }
-                    }
-                },
             )
         },
     ) { innerPadding ->
@@ -135,6 +109,7 @@ fun HomeScaffold(
                 uiState = uiState,
                 backGestureProgress = backGestureProgress,
                 backSwipeEdge = backSwipeEdge,
+                onPageSelected = onPageSelected,
                 overviewListState = overviewListState,
                 appsListState = appsListState,
                 settingsListState = settingsListState,
@@ -175,6 +150,7 @@ private fun ContentHost(
     uiState: HomeUiState,
     backGestureProgress: Float,
     backSwipeEdge: Int,
+    onPageSelected: (AppPage) -> Unit,
     overviewListState: androidx.compose.foundation.lazy.LazyListState,
     appsListState: androidx.compose.foundation.lazy.LazyListState,
     settingsListState: androidx.compose.foundation.lazy.LazyListState,
@@ -202,6 +178,10 @@ private fun ContentHost(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val pageWidth = with(LocalDensity.current) { maxWidth.toPx() }
+        val pagerState = rememberPagerState(
+            initialPage = pageIndex(uiState.selectedPage),
+            pageCount = { 3 },
+        )
         val predictiveProgress = backGestureProgress.coerceIn(0f, 1f)
         val easedProgress = PredictiveBackEasing.transform(predictiveProgress)
         val edgeDirection = if (backSwipeEdge == BackEventCompat.EDGE_RIGHT) -1f else 1f
@@ -227,30 +207,48 @@ private fun ContentHost(
             }
         }
 
+        LaunchedEffect(uiState.selectedPage) {
+            val targetPage = pageIndex(uiState.selectedPage)
+            if (pagerState.currentPage != targetPage) {
+                pagerState.animateScrollToPage(targetPage)
+            }
+        }
+
+        LaunchedEffect(pagerState, uiState.selectedPage, uiState.secondaryPage) {
+            snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+                if (uiState.secondaryPage == null) {
+                    val targetPage = pageAtIndex(settledPage)
+                    if (targetPage != uiState.selectedPage) {
+                        onPageSelected(targetPage)
+                    }
+                }
+            }
+        }
+
         val openingOffset = if (overlayVisible) {
-            (1f - overlayProgress) * pageWidth * 0.08f
+            (1f - overlayProgress) * pageWidth * 0.12f
         } else {
             0f
         }
         val closingOffset = if (!overlayVisible && predictiveProgress == 0f) {
-            edgeDirection * pageWidth * (1f - overlayProgress) * 0.08f
+            edgeDirection * pageWidth * (1f - overlayProgress) * 0.18f
         } else {
             0f
         }
         val overlayTranslationX = when {
-            predictiveProgress > 0f -> edgeDirection * pageWidth * 0.08f * easedProgress
+            predictiveProgress > 0f -> edgeDirection * pageWidth * 0.92f * easedProgress
             overlayVisible -> openingOffset
             else -> closingOffset
         }
         val overlayScale = if (predictiveProgress > 0f) {
-            1f - (0.08f * easedProgress)
+            1f - (0.015f * easedProgress)
         } else {
             1f
         }
 
         TopLevelPageContent(
-            page = uiState.selectedPage,
             uiState = uiState,
+            pagerState = pagerState,
             overviewListState = overviewListState,
             appsListState = appsListState,
             settingsListState = settingsListState,
@@ -291,7 +289,7 @@ private fun ContentHost(
                             Brush.verticalGradient(
                                 colors = listOf(
                                     MaterialTheme.colorScheme.background,
-                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.99f),
                                 ),
                             ),
                         ),
@@ -325,8 +323,8 @@ private fun ContentHost(
 
 @Composable
 private fun TopLevelPageContent(
-    page: AppPage,
     uiState: HomeUiState,
+    pagerState: androidx.compose.foundation.pager.PagerState,
     overviewListState: androidx.compose.foundation.lazy.LazyListState,
     appsListState: androidx.compose.foundation.lazy.LazyListState,
     settingsListState: androidx.compose.foundation.lazy.LazyListState,
@@ -342,29 +340,13 @@ private fun TopLevelPageContent(
     onRefreshAll: () -> Unit,
     onRefreshApps: () -> Unit,
 ) {
-    AnimatedContent(
-        targetState = page,
-        transitionSpec = {
-            val isForward = pageIndex(targetState) > pageIndex(initialState)
-            (
-                slideInHorizontally(
-                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                    initialOffsetX = { fullWidth ->
-                        if (isForward) fullWidth else -fullWidth
-                    },
-                ) togetherWith
-                    slideOutHorizontally(
-                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                        targetOffsetX = { fullWidth ->
-                            if (isForward) -fullWidth else fullWidth
-                        },
-                    )
-                ).using(SizeTransform(clip = false))
-        },
+    HorizontalPager(
+        state = pagerState,
         modifier = Modifier.fillMaxSize(),
-        label = "top_level_pages",
-    ) { currentPage ->
-        when (currentPage) {
+        beyondViewportPageCount = 2,
+        userScrollEnabled = uiState.secondaryPage == null,
+    ) { page ->
+        when (pageAtIndex(page)) {
             AppPage.Overview -> OverviewPage(
                 listState = overviewListState,
                 uiState = uiState,
@@ -484,4 +466,10 @@ private fun pageIndex(page: AppPage): Int = when (page) {
     AppPage.Overview -> 0
     AppPage.Apps -> 1
     AppPage.Settings -> 2
+}
+
+private fun pageAtIndex(index: Int): AppPage = when (index) {
+    0 -> AppPage.Overview
+    1 -> AppPage.Apps
+    else -> AppPage.Settings
 }

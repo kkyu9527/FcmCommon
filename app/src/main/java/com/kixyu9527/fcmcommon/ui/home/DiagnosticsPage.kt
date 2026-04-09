@@ -73,6 +73,31 @@ fun DiagnosticsPage(
         item {
             PageCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionHeader(
+                        title = "模块日志",
+                        subtitle = "这里保留最近的模块连接、断连和系统事件。",
+                    )
+                    if (uiState.recentConnectionEvents.isEmpty()) {
+                        InfoLine(
+                            title = "暂时没有日志",
+                            value = "等待事件",
+                            secondary = "模块一旦发生连接、断连或开关机事件，就会在这里显示。",
+                        )
+                    } else {
+                        uiState.recentConnectionEvents.forEach { event ->
+                            CuteLogCard(
+                                title = event.title,
+                                timestamp = event.timestamp,
+                                detail = event.detail,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            PageCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionHeader(title = "作用域")
                     Column(
                         modifier = Modifier.testTag(TestTags.ScopeRow),

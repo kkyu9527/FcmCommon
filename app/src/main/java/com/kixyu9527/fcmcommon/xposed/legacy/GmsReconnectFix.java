@@ -70,6 +70,9 @@ public class GmsReconnectFix extends LegacyHookModule {
                     if (!isTargetAlarm(alarmType) || !(param.args[0] instanceof Long delayMillis)) {
                         return;
                     }
+                    if (HEARTBEAT_ALARM.equals(alarmType)) {
+                        recordFcmDiagnosticsState(true, "Google Play 服务正在维持 FCM 心跳。");
+                    }
                     scheduleReconnectCheck(param.thisObject, alarmType, Math.max(delayMillis, 0L));
                 }
             });
@@ -165,6 +168,7 @@ public class GmsReconnectFix extends LegacyHookModule {
         if (context == null) {
             return;
         }
+        recordFcmDiagnosticsState(false, "Google Play 服务正在尝试重新建立 FCM 连接。");
         Intent reconnectIntent = new Intent(ACTION_GCM_RECONNECT);
         reconnectIntent.setPackage(GMS_PACKAGE_NAME);
         context.sendBroadcast(reconnectIntent);

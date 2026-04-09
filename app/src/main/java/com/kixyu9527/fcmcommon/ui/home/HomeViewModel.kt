@@ -176,12 +176,14 @@ private data class UiSeed(
     val query: String,
     val enabledFeatures: Set<FeatureKey>,
     val allowList: Set<String>,
+    val selectedAppPackage: String?,
 )
 
 private data class NavigationSeed(
     val page: AppPage,
     val secondaryPage: SecondaryPage?,
     val query: String,
+    val selectedAppPackage: String?,
 )
 
 private data class RuntimeSeed(
@@ -219,6 +221,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val selectedPage = MutableStateFlow(AppPage.Overview)
     private val secondaryPage = MutableStateFlow<SecondaryPage?>(null)
+    private val selectedAppPackage = MutableStateFlow<String?>(null)
     private val searchQuery = MutableStateFlow("")
     private val installedApps = MutableStateFlow<List<InstalledAppInfo>>(emptyList())
     private val appsLoading = MutableStateFlow(initialSettings.autoRefreshAppsOnLaunch)
@@ -231,11 +234,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         selectedPage,
         secondaryPage,
         searchQuery,
-    ) { page, detailsPage, query ->
+        selectedAppPackage,
+    ) { page, detailsPage, query, appPackage ->
         NavigationSeed(
             page = page,
             secondaryPage = detailsPage,
             query = query,
+            selectedAppPackage = appPackage,
         )
     }
 
@@ -253,6 +258,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             query = navigation.query,
             enabledFeatures = config.enabledFeatures,
             allowList = config.allowList,
+            selectedAppPackage = navigation.selectedAppPackage,
         )
     }
 
@@ -339,9 +345,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-        val selectedAppDetails = (seed.secondaryPage as? SecondaryPage.AppDetails)
-            ?.let { detailsPage ->
-                apps.firstOrNull { it.packageName == detailsPage.packageName }
+        val selectedAppDetails = seed.selectedAppPackage
+            ?.let { packageName ->
+                apps.firstOrNull { it.packageName == packageName }
             }
             ?.let { installed ->
                 AppDetailInfoModel(
@@ -404,7 +410,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             recentConnectionEvents = seed.connection.connectionEvents
                 .take(8)
                 .map(::toConnectionEventModel),
-            fcmDiagnosticsConnected = runtime.diagnosticsState.isConnected,
+            fcmDiagnosticsConnected = runtime.diagnosticsState.isConnected ||
+                (runtime.diagnosticsState.connectedSinceMillis != null &&
+                    runtime.diagnosticsState.lastEventTitle == "FCM 已连接"),
             fcmDiagnosticsDurationLabel = formatFcmDiagnosticsDuration(
                 connectedSinceMillis = runtime.diagnosticsState.connectedSinceMillis,
                 nowWallClockMillis = runtime.nowWallClockMillis,
@@ -455,6 +463,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openAppDetails(packageName: String) {
+        selectedAppPackage.value = packageName
         secondaryPage.value = SecondaryPage.AppDetails(packageName)
     }
 
