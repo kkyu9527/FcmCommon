@@ -1,13 +1,13 @@
 package com.kixyu9527.fcmcommon.ui.home
 
 import android.os.Build
-import android.os.SystemClock
 import androidx.activity.BackEventCompat
 import androidx.activity.ExperimentalActivityApi
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -23,9 +23,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kixyu9527.fcmcommon.ui.theme.FcmCommonTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.delay
 
-private const val PredictiveBackDebounceMillis = 200L
+private const val PredictiveBackCommitDurationMillis = 420
+private const val PredictiveBackCancelDurationMillis = 460
+private val PredictiveBackCommitEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private val PredictiveBackCancelEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 @OptIn(ExperimentalActivityApi::class)
 @Composable
@@ -59,34 +61,30 @@ fun HomeRoute(
     FcmCommonTheme(darkTheme = darkTheme) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             PredictiveBackHandler(enabled = uiState.value.canNavigateBack) { progress ->
-                var gestureStartedAt = 0L
-                var predictiveBackEnabled = false
                 try {
+                    backGestureProgress.stop()
+                    backGestureProgress.snapTo(0f)
                     progress.collect { backEvent ->
-                        if (gestureStartedAt == 0L) {
-                            gestureStartedAt = SystemClock.elapsedRealtime()
-                        }
                         backSwipeEdge = backEvent.swipeEdge
-                        val gestureDuration = SystemClock.elapsedRealtime() - gestureStartedAt
-                        if (gestureDuration >= PredictiveBackDebounceMillis) {
-                            predictiveBackEnabled = true
-                            backGestureProgress.snapTo(backEvent.progress)
-                        }
+                        backGestureProgress.snapTo(backEvent.progress)
                     }
                     viewModel.navigateBack()
-                    if (predictiveBackEnabled) {
-                        delay(260L)
-                    }
+                    backGestureProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = PredictiveBackCommitDurationMillis,
+                            easing = PredictiveBackCommitEasing,
+                        ),
+                    )
                     backGestureProgress.snapTo(0f)
                 } catch (error: CancellationException) {
-                    if (predictiveBackEnabled) {
-                        backGestureProgress.animateTo(
-                            targetValue = 0f,
-                            animationSpec = tween(durationMillis = 260),
-                        )
-                    } else {
-                        backGestureProgress.snapTo(0f)
-                    }
+                    backGestureProgress.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(
+                            durationMillis = PredictiveBackCancelDurationMillis,
+                            easing = PredictiveBackCancelEasing,
+                        ),
+                    )
                 }
             }
         } else {
@@ -102,10 +100,10 @@ fun HomeRoute(
             onPageSelected = viewModel::selectPage,
             onNavigateBack = viewModel::navigateBack,
             onOpenSecondaryPage = viewModel::openSecondaryPage,
+            onOpenTertiaryPage = viewModel::openTertiaryPage,
             onOpenAppDetails = viewModel::openAppDetails,
             onFeatureToggle = viewModel::setFeatureEnabled,
             onThemeModeChanged = viewModel::setThemeMode,
-            onAutoRefreshAppsOnLaunchChanged = viewModel::setAutoRefreshAppsOnLaunch,
             onShowSystemAppsChanged = viewModel::setShowSystemApps,
             onShowPackageNameInListChanged = viewModel::setShowPackageNameInList,
             onShowDisabledAppsChanged = viewModel::setShowDisabledApps,

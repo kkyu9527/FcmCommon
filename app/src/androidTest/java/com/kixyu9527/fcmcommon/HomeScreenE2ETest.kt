@@ -53,6 +53,11 @@ class HomeScreenE2ETest {
         composeRule.onNodeWithTag(TestTags.SettingsDiagnosticsEntry).performClick()
         composeRule.onNodeWithTag(TestTags.PageDiagnosticsDetail).assertIsDisplayed()
         composeRule.onNodeWithTag(TestTags.DiagnosticsCard).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.DiagnosticsLogsEntry).performClick()
+        composeRule.onNodeWithTag(TestTags.PageModuleLogs).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.ModuleLogsCard).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.TopBarBack).performClick()
+        composeRule.onNodeWithTag(TestTags.PageDiagnosticsDetail).assertIsDisplayed()
         composeRule.onNodeWithTag(TestTags.TopBarBack).performClick()
 
         composeRule.onNodeWithTag(TestTags.PageSettings).assertIsDisplayed()

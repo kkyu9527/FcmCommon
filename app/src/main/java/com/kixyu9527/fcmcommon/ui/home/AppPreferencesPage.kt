@@ -14,7 +14,6 @@ fun AppPreferencesPage(
     listState: LazyListState,
     uiState: HomeUiState,
     onOnlyPushAppsChanged: (Boolean) -> Unit,
-    onAutoRefreshAppsOnLaunchChanged: (Boolean) -> Unit,
     onShowSystemAppsChanged: (Boolean) -> Unit,
     onShowPackageNameInListChanged: (Boolean) -> Unit,
     onShowDisabledAppsChanged: (Boolean) -> Unit,
@@ -35,11 +34,10 @@ fun AppPreferencesPage(
                         onCheckedChange = onOnlyPushAppsChanged,
                     )
                     SectionDivider()
-                    PreferenceToggleLine(
-                        title = "启动时自动扫描应用",
-                        summary = "进入 FcmCommon 时自动刷新应用列表",
-                        checked = uiState.autoRefreshAppsOnLaunch,
-                        onCheckedChange = onAutoRefreshAppsOnLaunchChanged,
+                    InfoLine(
+                        title = "扫描策略",
+                        value = if (uiState.appsScanned) "使用缓存" else "等待首扫",
+                        secondary = "首次安装或缓存缺失时自动扫描，后续只在点击“重新扫描”时更新列表。",
                     )
                     SectionDivider()
                     PreferenceToggleLine(

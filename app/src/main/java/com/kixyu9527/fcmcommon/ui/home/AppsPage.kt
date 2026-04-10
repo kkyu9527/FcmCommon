@@ -70,14 +70,14 @@ fun AppsPage(
             item {
                 EmptyStateCard(
                     title = when {
-                        uiState.appsLoading -> "正在扫描应用"
-                        !uiState.appsScanned -> "尚未扫描应用"
+                        uiState.appsLoading -> "正在建立应用缓存"
+                        !uiState.appsScanned -> "等待首次扫描"
                         else -> "没有匹配结果"
                     },
                     body = when {
-                        uiState.appsLoading -> "正在识别可能使用 FCM 的应用。"
-                        !uiState.appsScanned -> "点击重新扫描后，会自动识别使用 FCM 的应用。"
-                        else -> "修改搜索条件或重新扫描后再试。"
+                        uiState.appsLoading -> "正在识别可能使用 FCM 的应用，并保存本次扫描结果。"
+                        !uiState.appsScanned -> "首次安装会自动扫描；后续只有点击“重新扫描”时才会更新应用列表。"
+                        else -> "当前展示的是最近一次扫描结果，修改搜索条件或重新扫描后再试。"
                     },
                 )
             }
@@ -111,7 +111,7 @@ private fun AppsToolbarCard(
         if (uiState.appsScanned || uiState.appsLoading) {
             append("候选 ${uiState.pushCandidateCount}")
         } else {
-            append("未扫描")
+            append("待首扫")
         }
     }
 

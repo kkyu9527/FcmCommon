@@ -17,6 +17,7 @@ import com.kixyu9527.fcmcommon.ui.TestTags
 fun DiagnosticsPage(
     listState: LazyListState,
     uiState: HomeUiState,
+    onOpenModuleLogs: () -> Unit,
     onRefreshAll: () -> Unit,
     onRefreshApps: () -> Unit,
 ) {
@@ -48,7 +49,7 @@ fun DiagnosticsPage(
                             !uiState.appsScanned -> "未扫描"
                             else -> uiState.pushCandidateCount.toString()
                         },
-                        secondary = "检测到 FCM 相关组件的应用数量",
+                        secondary = "基于最近一次手动或首次扫描得到的候选数量",
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -75,23 +76,18 @@ fun DiagnosticsPage(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionHeader(
                         title = "模块日志",
-                        subtitle = "这里保留最近的模块连接、断连和系统事件。",
                     )
-                    if (uiState.recentConnectionEvents.isEmpty()) {
-                        InfoLine(
-                            title = "暂时没有日志",
-                            value = "等待事件",
-                            secondary = "模块一旦发生连接、断连或开关机事件，就会在这里显示。",
-                        )
-                    } else {
-                        uiState.recentConnectionEvents.forEach { event ->
-                            CuteLogCard(
-                                title = event.title,
-                                timestamp = event.timestamp,
-                                detail = event.detail,
-                            )
-                        }
-                    }
+                    PreferenceNavigationLine(
+                        title = "查看模块日志",
+                        summary = if (uiState.recentConnectionEvents.isEmpty()) {
+                            "模块一旦发生连接、断连或开关机事件，就会在这里显示。"
+                        } else {
+                            uiState.connectionSummary
+                        },
+                        value = "进入查看",
+                        onClick = onOpenModuleLogs,
+                        modifier = Modifier.testTag(TestTags.DiagnosticsLogsEntry),
+                    )
                 }
             }
         }

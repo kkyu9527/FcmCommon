@@ -70,6 +70,16 @@ sealed class SecondaryPage(
     )
 }
 
+sealed class TertiaryPage(
+    val route: String,
+    val title: String,
+) {
+    data object ModuleLogs : TertiaryPage(
+        route = "module_logs",
+        title = "模块日志",
+    )
+}
+
 data class FeatureCardModel(
     val key: FeatureKey,
     val enabled: Boolean,
@@ -125,6 +135,7 @@ data class ConnectionEventModel(
 data class HomeUiState(
     val selectedPage: AppPage = AppPage.Overview,
     val secondaryPage: SecondaryPage? = null,
+    val tertiaryPage: TertiaryPage? = null,
     val themeMode: AppThemeMode = AppThemeMode.System,
     val connection: XposedServiceState = XposedServiceState.bootstrap(),
     val features: List<FeatureCardModel> = emptyList(),
@@ -132,7 +143,6 @@ data class HomeUiState(
     val appRows: List<AppRowModel> = emptyList(),
     val appSearchQuery: String = "",
     val onlyShowPushApps: Boolean = true,
-    val autoRefreshAppsOnLaunch: Boolean = true,
     val showSystemApps: Boolean = false,
     val showPackageNameInList: Boolean = true,
     val showDisabledApps: Boolean = true,
@@ -154,22 +164,23 @@ data class HomeUiState(
         get() = features.count { it.enabled }
 
     val headerTitle: String
-        get() = when (secondaryPage) {
+        get() = tertiaryPage?.title ?: when (secondaryPage) {
             is SecondaryPage.AppDetails -> selectedAppDetails?.label ?: secondaryPage.title
             null -> selectedPage.title
             else -> secondaryPage.title
         }
 
     val showsBottomBar: Boolean
-        get() = secondaryPage == null
+        get() = secondaryPage == null && tertiaryPage == null
 
     val canNavigateBack: Boolean
-        get() = secondaryPage != null
+        get() = secondaryPage != null || tertiaryPage != null
 }
 
 private data class UiSeed(
     val page: AppPage,
     val secondaryPage: SecondaryPage?,
+    val tertiaryPage: TertiaryPage?,
     val settings: UiSettings,
     val connection: XposedServiceState,
     val query: String,
@@ -181,6 +192,7 @@ private data class UiSeed(
 private data class NavigationSeed(
     val page: AppPage,
     val secondaryPage: SecondaryPage?,
+    val tertiaryPage: TertiaryPage?,
     val query: String,
     val selectedAppPackage: String?,
 )
@@ -219,18 +231,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val eventTimeFormatter = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA)
     private val appTimeFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
     private val initialSettings = uiSettingsRepository.settings.value
+    private val initialCachedAppsSnapshot = appsRepository.loadCachedInstalledAppsSnapshot()
     private val initialAppsPermissionGranted = appsRepository.canReadInstalledApps()
+    private val initialAppsScanned = initialCachedAppsSnapshot.hasSnapshot
     private val shouldBootstrapScan =
-        initialSettings.autoRefreshAppsOnLaunch || !initialSettings.hasCompletedInitialScan
+        !initialSettings.hasCompletedInitialScan || !initialCachedAppsSnapshot.hasSnapshot
 
     private val selectedPage = MutableStateFlow(AppPage.Overview)
     private val secondaryPage = MutableStateFlow<SecondaryPage?>(null)
+    private val tertiaryPage = MutableStateFlow<TertiaryPage?>(null)
     private val selectedAppPackage = MutableStateFlow<String?>(null)
     private val searchQuery = MutableStateFlow("")
     private val appsPermissionGranted = MutableStateFlow(initialAppsPermissionGranted)
-    private val installedApps = MutableStateFlow<List<InstalledAppInfo>>(emptyList())
+    private val installedApps = MutableStateFlow(initialCachedAppsSnapshot.apps)
     private val appsLoading = MutableStateFlow(shouldBootstrapScan && initialAppsPermissionGranted)
-    private val appsScanned = MutableStateFlow(false)
+    private val appsScanned = MutableStateFlow(initialAppsScanned)
     private val clockNow = MutableStateFlow(SystemClock.elapsedRealtime())
     private val wallClockNow = MutableStateFlow(System.currentTimeMillis())
     private val fcmDiagnosticsState = MutableStateFlow(fcmDiagnosticsRepository.loadState())
@@ -238,12 +253,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val navigationSeed = combine(
         selectedPage,
         secondaryPage,
+        tertiaryPage,
         searchQuery,
         selectedAppPackage,
-    ) { page, detailsPage, query, appPackage ->
+    ) { page, secondary, tertiary, query, appPackage ->
         NavigationSeed(
             page = page,
-            secondaryPage = detailsPage,
+            secondaryPage = secondary,
+            tertiaryPage = tertiary,
             query = query,
             selectedAppPackage = appPackage,
         )
@@ -258,6 +275,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         UiSeed(
             page = navigation.page,
             secondaryPage = navigation.secondaryPage,
+            tertiaryPage = navigation.tertiaryPage,
             settings = settings,
             connection = connection,
             query = navigation.query,
@@ -380,6 +398,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         HomeUiState(
             selectedPage = seed.page,
             secondaryPage = seed.secondaryPage,
+            tertiaryPage = seed.tertiaryPage,
             themeMode = seed.settings.themeMode,
             connection = seed.connection,
             features = FeatureKey.entries.map { featureKey ->
@@ -399,7 +418,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             appRows = appRows,
             appSearchQuery = seed.query,
             onlyShowPushApps = seed.settings.onlyShowPushApps,
-            autoRefreshAppsOnLaunch = seed.settings.autoRefreshAppsOnLaunch,
             showSystemApps = seed.settings.showSystemApps,
             showPackageNameInList = seed.settings.showPackageNameInList,
             showDisabledApps = seed.settings.showDisabledApps,
@@ -433,7 +451,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = HomeUiState(
             themeMode = initialSettings.themeMode,
             onlyShowPushApps = initialSettings.onlyShowPushApps,
-            autoRefreshAppsOnLaunch = initialSettings.autoRefreshAppsOnLaunch,
             showSystemApps = initialSettings.showSystemApps,
             showPackageNameInList = initialSettings.showPackageNameInList,
             showDisabledApps = initialSettings.showDisabledApps,
@@ -442,12 +459,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 connection = XposedServiceState.bootstrap(),
                 enabledFeatureCount = FeatureKey.defaultEnabledSet.size,
                 trackedAppsCount = 0,
-                pushCandidateCount = 0,
+                pushCandidateCount = initialCachedAppsSnapshot.apps.count { it.hasPushSupport },
                 appsLoading = shouldBootstrapScan && initialAppsPermissionGranted,
-                appsScanned = false,
+                appsScanned = initialAppsScanned,
             ),
             scopeStatuses = scopeStatuses(XposedServiceState.bootstrap()),
             appsLoading = shouldBootstrapScan && initialAppsPermissionGranted,
+            appsScanned = initialAppsScanned,
             connectionDurationLabel = "未连接",
             connectionSummary = "暂无记录",
             fcmDiagnosticsDurationLabel = "未连接",
@@ -467,21 +485,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectPage(page: AppPage) {
+        tertiaryPage.value = null
         secondaryPage.value = null
         selectedPage.value = page
     }
 
     fun openSecondaryPage(page: SecondaryPage) {
+        tertiaryPage.value = null
         secondaryPage.value = page
+    }
+
+    fun openTertiaryPage(page: TertiaryPage) {
+        if (secondaryPage.value != null) {
+            tertiaryPage.value = page
+        }
     }
 
     fun openAppDetails(packageName: String) {
         selectedAppPackage.value = packageName
+        tertiaryPage.value = null
         secondaryPage.value = SecondaryPage.AppDetails(packageName)
     }
 
     fun navigateBack() {
-        secondaryPage.value = null
+        if (tertiaryPage.value != null) {
+            tertiaryPage.value = null
+        } else {
+            secondaryPage.value = null
+        }
     }
 
     fun setFeatureEnabled(featureKey: FeatureKey, enabled: Boolean) {
@@ -509,15 +540,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setThemeMode(themeMode: AppThemeMode) {
         viewModelScope.launch {
             uiSettingsRepository.setThemeMode(themeMode)
-        }
-    }
-
-    fun setAutoRefreshAppsOnLaunch(enabled: Boolean) {
-        viewModelScope.launch {
-            uiSettingsRepository.setAutoRefreshAppsOnLaunch(enabled)
-            if (enabled && appsPermissionGranted.value && !appsScanned.value && !appsLoading.value) {
-                refreshAppsInternal()
-            }
         }
     }
 
@@ -563,11 +585,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshAll() {
         viewModelScope.launch {
             configRepository.refresh()
-            if (appsPermissionGranted.value) {
-                refreshAppsInternal()
-            } else {
-                refreshAppsPermissionState(triggerScanIfNeeded = true)
-            }
         }
     }
 
@@ -601,14 +618,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun refreshAppsInternal() {
         appsLoading.value = true
-        installedApps.value = runCatching {
-            appsRepository.loadInstalledApps()
-        }.getOrElse {
-            emptyList()
+        runCatching {
+            appsRepository.refreshInstalledAppsCache()
+        }.onSuccess { refreshedApps ->
+            installedApps.value = refreshedApps
+            appsScanned.value = true
+            uiSettingsRepository.markInitialScanCompleted()
         }
-        appsScanned.value = true
         appsLoading.value = false
-        uiSettingsRepository.markInitialScanCompleted()
     }
 
     private suspend fun refreshAppsPermissionState(triggerScanIfNeeded: Boolean) {
@@ -655,7 +672,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 !appsScanned -> "未扫描"
                 else -> pushCandidateCount.toString()
             },
-            hint = "检测到 FCM 组件",
+            hint = "基于最近一次扫描结果",
         ),
     )
 
