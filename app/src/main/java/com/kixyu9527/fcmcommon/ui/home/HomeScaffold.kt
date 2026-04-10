@@ -1,6 +1,5 @@
 package com.kixyu9527.fcmcommon.ui.home
 
-import androidx.activity.BackEventCompat
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
@@ -36,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.kixyu9527.fcmcommon.data.AppThemeMode
@@ -47,22 +47,18 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.max
 
-private val PredictiveBackEasing = CubicBezierEasing(0.18f, 0.96f, 0.22f, 1f)
-private val PredictiveBackBackdropEasing = CubicBezierEasing(0.22f, 0.94f, 0.26f, 1f)
+private val OverlayBackdropEasing = CubicBezierEasing(0.2f, 0.9f, 0.2f, 1f)
 private val SecondaryPageEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 private const val OverlayOpenOffsetFraction = 0.14f
-private const val OverlayCloseTravelMultiplier = 1.14f
-private const val BaseLayerParallaxFraction = 0.045f
-private const val BaseLayerScaleFraction = 0.018f
-private const val BaseLayerScaleYFraction = 0.012f
+private const val OverlayCloseTravelMultiplier = 1.08f
+private const val OverlayBaseScaleDelta = 0.04f
+private const val OverlayBaseParallaxFraction = 0.03f
+private const val PreferredHighRefreshRate = 120f
 
 @Composable
 fun HomeScaffold(
     uiState: HomeUiState,
-    backGestureProgress: Float,
-    backSwipeEdge: Int,
     onPageSelected: (AppPage) -> Unit,
     onNavigateBack: () -> Unit,
     onOpenSecondaryPage: (SecondaryPage) -> Unit,
@@ -151,8 +147,6 @@ fun HomeScaffold(
                 uiState = uiState,
                 pagerState = pagerState,
                 pagerNavigator = pagerNavigator,
-                backGestureProgress = backGestureProgress,
-                backSwipeEdge = backSwipeEdge,
                 onPageSelected = onPageSelected,
                 overviewListState = overviewListState,
                 appsListState = appsListState,
@@ -198,8 +192,6 @@ private fun ContentHost(
     uiState: HomeUiState,
     pagerState: PagerState,
     pagerNavigator: HomePagerNavigator,
-    backGestureProgress: Float,
-    backSwipeEdge: Int,
     onPageSelected: (AppPage) -> Unit,
     overviewListState: androidx.compose.foundation.lazy.LazyListState,
     appsListState: androidx.compose.foundation.lazy.LazyListState,
@@ -227,13 +219,8 @@ private fun ContentHost(
     onRefreshApps: () -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val contentModifier = Modifier
-            .fillMaxSize()
-            .clipToBounds()
         val pageWidth = with(LocalDensity.current) { maxWidth.toPx() }
         val offscreenOffset = with(LocalDensity.current) { 36.dp.toPx() }
-        val predictiveProgress = backGestureProgress.coerceIn(0f, 1f)
-        val edgeDirection = if (backSwipeEdge == BackEventCompat.EDGE_RIGHT) -1f else 1f
         var renderedSecondaryPage by remember { mutableStateOf(uiState.secondaryPage) }
         var renderedTertiaryPage by remember { mutableStateOf(uiState.tertiaryPage) }
         val secondaryVisible = uiState.secondaryPage != null
@@ -267,7 +254,6 @@ private fun ContentHost(
             },
             label = "tertiary_page_overlay",
         )
-
         LaunchedEffect(uiState.secondaryPage) {
             if (uiState.secondaryPage != null) {
                 renderedSecondaryPage = uiState.secondaryPage
@@ -297,36 +283,41 @@ private fun ContentHost(
         val secondaryOverlayTranslationX = overlayTranslationX(
             overlayVisible = secondaryVisible,
             overlayProgress = secondaryOverlayProgress,
-            predictiveProgress = if (tertiaryVisible) 0f else predictiveProgress,
-            edgeDirection = edgeDirection,
             pageWidth = pageWidth,
             offscreenOffset = offscreenOffset,
         )
         val tertiaryOverlayTranslationX = overlayTranslationX(
             overlayVisible = tertiaryVisible,
             overlayProgress = tertiaryOverlayProgress,
-            predictiveProgress = if (tertiaryVisible) predictiveProgress else 0f,
-            edgeDirection = edgeDirection,
             pageWidth = pageWidth,
             offscreenOffset = offscreenOffset,
         )
         val baseLayerProgress = when {
-            renderedTertiaryPage != null || tertiaryVisible -> {
-                max(tertiaryOverlayProgress, predictiveProgress)
-            }
-
-            renderedSecondaryPage != null || secondaryVisible -> {
-                max(secondaryOverlayProgress, predictiveProgress)
-            }
-
+            renderedTertiaryPage != null || tertiaryVisible -> tertiaryOverlayProgress
+            renderedSecondaryPage != null || secondaryVisible -> secondaryOverlayProgress
             else -> 0f
         }.coerceIn(0f, 1f)
-        val easedBaseLayerProgress = PredictiveBackBackdropEasing.transform(baseLayerProgress)
-        val baseLayerTranslationX = -edgeDirection * pageWidth *
-            BaseLayerParallaxFraction *
+        val easedBaseLayerProgress = OverlayBackdropEasing.transform(baseLayerProgress)
+        val baseLayerTranslationX = -pageWidth *
+            OverlayBaseParallaxFraction *
             easedBaseLayerProgress
-        val baseLayerScaleX = 1f - (BaseLayerScaleFraction * easedBaseLayerProgress)
-        val baseLayerScaleY = 1f - (BaseLayerScaleYFraction * easedBaseLayerProgress)
+        val baseLayerScale = 1f - (OverlayBaseScaleDelta * easedBaseLayerProgress)
+        val prefersHighRefreshRate =
+            pagerNavigator.isNavigating ||
+                (secondaryVisible && secondaryOverlayProgress < 1f) ||
+                (!secondaryVisible && secondaryOverlayProgress > 0f) ||
+                (tertiaryVisible && tertiaryOverlayProgress < 1f) ||
+                (!tertiaryVisible && tertiaryOverlayProgress > 0f)
+        val contentModifier = if (prefersHighRefreshRate) {
+            Modifier
+                .fillMaxSize()
+                .clipToBounds()
+                .preferredFrameRate(PreferredHighRefreshRate)
+        } else {
+            Modifier
+                .fillMaxSize()
+                .clipToBounds()
+        }
 
         Box(modifier = contentModifier) {
             Box(
@@ -334,8 +325,8 @@ private fun ContentHost(
                     .fillMaxSize()
                     .graphicsLayer {
                         translationX = baseLayerTranslationX
-                        scaleX = baseLayerScaleX
-                        scaleY = baseLayerScaleY
+                        scaleX = baseLayerScale
+                        scaleY = baseLayerScale
                     },
             ) {
                 TopLevelPageContent(
@@ -558,32 +549,21 @@ private fun TertiaryPageContent(
 private fun overlayTranslationX(
     overlayVisible: Boolean,
     overlayProgress: Float,
-    predictiveProgress: Float,
-    edgeDirection: Float,
     pageWidth: Float,
     offscreenOffset: Float,
 ): Float {
-    val clampedPredictiveProgress = predictiveProgress.coerceIn(0f, 1f)
     val openingOffset = if (overlayVisible) {
         (1f - overlayProgress) * pageWidth * OverlayOpenOffsetFraction
     } else {
         0f
     }
-    val closingOffset = if (!overlayVisible && clampedPredictiveProgress == 0f) {
-        edgeDirection * ((pageWidth * OverlayCloseTravelMultiplier) + offscreenOffset) * (1f - overlayProgress)
+    val closingOffset = if (!overlayVisible) {
+        ((pageWidth * OverlayCloseTravelMultiplier) + offscreenOffset) * (1f - overlayProgress)
     } else {
         0f
     }
 
-    return when {
-        clampedPredictiveProgress > 0f -> {
-            val easedProgress = PredictiveBackEasing.transform(clampedPredictiveProgress)
-            edgeDirection * ((pageWidth * OverlayCloseTravelMultiplier) + offscreenOffset) * easedProgress
-        }
-
-        overlayVisible -> openingOffset
-        else -> closingOffset
-    }
+    return if (overlayVisible) openingOffset else closingOffset
 }
 
 @Composable

@@ -94,8 +94,8 @@ fun AppDetailsPage(
                             subtitle = "这里保留运行状态，详细字段点按即可复制。",
                         )
                         PreferenceToggleLine(
-                            title = "加入白名单",
-                            summary = "加入后会作为重点保活目标参与相关修复链路",
+                            title = "纳入托管",
+                            summary = "托管后会参与 FCM 修复链路。",
                             checked = app.isAllowed,
                             onCheckedChange = { onAppAllowedChanged(app.packageName, it) },
                         )
@@ -259,7 +259,7 @@ private fun AppSummaryCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 StatusPill(
-                    label = if (app.isAllowed) "已加入白名单" else "未加入白名单",
+                    label = if (app.isAllowed) "已纳入托管" else "未纳入托管",
                     background = if (app.isAllowed) {
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     } else {

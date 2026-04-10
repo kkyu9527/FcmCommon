@@ -601,6 +601,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun bootstrapRefresh() {
         viewModelScope.launch {
             configRepository.refresh()
+            hydrateCachedIconsIfNeeded()
             refreshAppsPermissionState(triggerScanIfNeeded = shouldBootstrapScan)
         }
     }
@@ -639,7 +640,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (triggerScanIfNeeded && !appsLoading.value && !appsScanned.value) {
             refreshAppsInternal()
+        } else {
+            hydrateCachedIconsIfNeeded()
         }
+    }
+
+    private suspend fun hydrateCachedIconsIfNeeded() {
+        val apps = installedApps.value
+        if (apps.isEmpty() || apps.none { it.icon == null }) return
+        installedApps.value = appsRepository.hydrateCachedInstalledAppsIcons(apps)
     }
 
     private fun buildOverviewStats(
@@ -661,9 +670,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             hint = "当前已启用的修复项",
         ),
         OverviewStatModel(
-            label = "白名单应用",
+            label = "托管应用",
             value = trackedAppsCount.toString(),
-            hint = "重点保活目标",
+            hint = "参与 FCM 修复链路的目标应用",
         ),
         OverviewStatModel(
             label = "推送候选",

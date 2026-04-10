@@ -303,45 +303,6 @@ fun SectionHeader(
 }
 
 @Composable
-fun MetricTile(stat: OverviewStatModel) {
-    Surface(
-        modifier = Modifier.widthIn(min = 136.dp),
-        shape = RowShape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        ),
-        tonalElevation = 0.dp,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = stat.label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stat.value,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stat.hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
 fun FeatureLine(
     feature: FeatureCardModel,
     onFeatureToggle: (FeatureKey, Boolean) -> Unit,
