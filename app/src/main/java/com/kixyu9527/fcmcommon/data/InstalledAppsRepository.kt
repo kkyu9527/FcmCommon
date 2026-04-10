@@ -2,6 +2,7 @@ package com.kixyu9527.fcmcommon.data
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.InstallSourceInfo
 import android.content.pm.PackageInfo
@@ -9,8 +10,11 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 import android.os.Build
+import androidx.core.content.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class InstalledAppInfo(
     val packageName: String,
@@ -30,18 +34,132 @@ data class InstalledAppInfo(
     val isEnabled: Boolean,
 )
 
+data class InstalledAppsCacheSnapshot(
+    val apps: List<InstalledAppInfo>,
+    val hasSnapshot: Boolean,
+)
+
+private data class CachedInstalledAppInfo(
+    val packageName: String,
+    val label: String,
+    val isSystemApp: Boolean,
+    val hasPushSupport: Boolean,
+    val versionName: String,
+    val versionCode: Long,
+    val targetSdkVersion: Int,
+    val minSdkVersion: Int?,
+    val firstInstallTime: Long,
+    val lastUpdateTime: Long,
+    val installerPackageName: String,
+    val processName: String?,
+    val uid: Int,
+    val isEnabled: Boolean,
+)
+
 class InstalledAppsRepository(
-    private val context: Context,
+    context: Context,
 ) {
+    private val appContext = context.applicationContext
+    private val storageContext = appContext.createDeviceProtectedStorageContext()
+    private val preferences: SharedPreferences =
+        storageContext.getSharedPreferences(
+            ConfigKeys.InstalledAppsCachePrefsName,
+            Context.MODE_PRIVATE,
+        )
+
     fun canReadInstalledApps(): Boolean = true
 
-    suspend fun loadInstalledApps(): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
-        val packageManager = context.packageManager
+    fun loadCachedInstalledAppsSnapshot(): InstalledAppsCacheSnapshot {
+        val rawCache = preferences.getString(ConfigKeys.KeyInstalledAppsCache, null)
+            ?: return InstalledAppsCacheSnapshot(
+                apps = emptyList(),
+                hasSnapshot = false,
+            )
+
+        return runCatching {
+            InstalledAppsCacheSnapshot(
+                apps = decodeCachedApps(rawCache).map { cached ->
+                    cached.toInstalledAppInfo()
+                },
+                hasSnapshot = true,
+            )
+        }.getOrElse {
+            InstalledAppsCacheSnapshot(
+                apps = emptyList(),
+                hasSnapshot = false,
+            )
+        }
+    }
+
+    suspend fun refreshInstalledAppsCache(): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
+        val scannedApps = scanInstalledApps()
+        persistInstalledAppsCache(scannedApps)
+        scannedApps
+    }
+
+    private fun persistInstalledAppsCache(apps: List<InstalledAppInfo>) {
+        val payload = JSONArray().apply {
+            apps.forEach { app ->
+                put(
+                    JSONObject().apply {
+                        put("packageName", app.packageName)
+                        put("label", app.label)
+                        put("isSystemApp", app.isSystemApp)
+                        put("hasPushSupport", app.hasPushSupport)
+                        put("versionName", app.versionName)
+                        put("versionCode", app.versionCode)
+                        put("targetSdkVersion", app.targetSdkVersion)
+                        put("minSdkVersion", app.minSdkVersion ?: JSONObject.NULL)
+                        put("firstInstallTime", app.firstInstallTime)
+                        put("lastUpdateTime", app.lastUpdateTime)
+                        put("installerPackageName", app.installerPackageName)
+                        put("processName", app.processName ?: JSONObject.NULL)
+                        put("uid", app.uid)
+                        put("isEnabled", app.isEnabled)
+                    },
+                )
+            }
+        }.toString()
+
+        preferences.edit(commit = true) {
+            putString(ConfigKeys.KeyInstalledAppsCache, payload)
+        }
+    }
+
+    private fun decodeCachedApps(rawCache: String): List<CachedInstalledAppInfo> {
+        val array = JSONArray(rawCache)
+        return buildList(array.length()) {
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index) ?: continue
+                add(
+                    CachedInstalledAppInfo(
+                        packageName = item.optString("packageName"),
+                        label = item.optString("label"),
+                        isSystemApp = item.optBoolean("isSystemApp"),
+                        hasPushSupport = item.optBoolean("hasPushSupport"),
+                        versionName = item.optString("versionName", "-"),
+                        versionCode = item.optLong("versionCode"),
+                        targetSdkVersion = item.optInt("targetSdkVersion"),
+                        minSdkVersion = item.optNullableInt("minSdkVersion"),
+                        firstInstallTime = item.optLong("firstInstallTime"),
+                        lastUpdateTime = item.optLong("lastUpdateTime"),
+                        installerPackageName = item.optString("installerPackageName", "-"),
+                        processName = item.optNullableString("processName"),
+                        uid = item.optInt("uid"),
+                        isEnabled = item.optBoolean("isEnabled", true),
+                    ),
+                )
+            }
+        }
+    }
+
+    private suspend fun scanInstalledApps(): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
+        val packageManager = appContext.packageManager
         val pushPackages = detectPushPackages(packageManager)
 
         getInstalledApplications(packageManager)
             .asSequence()
-            .filter { it.packageName != context.packageName }
+            .filter { it.packageName != appContext.packageName }
             .map { appInfo ->
                 val packageInfo = getPackageInfo(packageManager, appInfo.packageName)
                 InstalledAppInfo(
@@ -166,6 +284,34 @@ class InstalledAppsRepository(
             packageManager.queryBroadcastReceivers(intent, PackageManager.MATCH_DISABLED_COMPONENTS)
         }
     }
+}
+
+private fun CachedInstalledAppInfo.toInstalledAppInfo(): InstalledAppInfo = InstalledAppInfo(
+    packageName = packageName,
+    label = label.ifBlank { packageName },
+    icon = null,
+    isSystemApp = isSystemApp,
+    hasPushSupport = hasPushSupport,
+    versionName = versionName.ifBlank { "-" },
+    versionCode = versionCode,
+    targetSdkVersion = targetSdkVersion,
+    minSdkVersion = minSdkVersion,
+    firstInstallTime = firstInstallTime,
+    lastUpdateTime = lastUpdateTime,
+    installerPackageName = installerPackageName.ifBlank { "-" },
+    processName = processName,
+    uid = uid,
+    isEnabled = isEnabled,
+)
+
+private fun JSONObject.optNullableString(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return optString(key).takeIf { it.isNotBlank() }
+}
+
+private fun JSONObject.optNullableInt(key: String): Int? {
+    if (!has(key) || isNull(key)) return null
+    return optInt(key)
 }
 
 private fun PackageInfo.toVersionCode(): Long {

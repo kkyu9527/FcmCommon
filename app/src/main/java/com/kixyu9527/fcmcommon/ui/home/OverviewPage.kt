@@ -151,7 +151,6 @@ fun OverviewPage(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionHeader(
                         title = "概览指标",
-                        subtitle = "这里保留最常看的配置和候选应用信息。",
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),

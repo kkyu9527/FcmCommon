@@ -10,10 +10,12 @@ object TestTags {
     const val PageAppPreferences = "page_app_preferences"
     const val PageFeatureSettings = "page_feature_settings"
     const val PageDiagnosticsDetail = "page_diagnostics_detail"
+    const val PageModuleLogs = "page_module_logs"
     const val PageAppDetails = "page_app_details"
     const val Header = "header"
     const val ConnectionHeadline = "connection_headline"
     const val DiagnosticsCard = "diagnostics_card"
+    const val ModuleLogsCard = "module_logs_card"
     const val ScopeRow = "scope_row"
     const val AppsList = "apps_list"
     const val AppsSearchField = "apps_search_field"
@@ -28,6 +30,7 @@ object TestTags {
     const val SettingsAppsEntry = "settings_apps_entry"
     const val SettingsFeaturesEntry = "settings_features_entry"
     const val SettingsDiagnosticsEntry = "settings_diagnostics_entry"
+    const val DiagnosticsLogsEntry = "diagnostics_logs_entry"
 
     fun featureToggle(featureKey: FeatureKey): String =
         "feature_toggle_${featureKey.name.lowercase()}"

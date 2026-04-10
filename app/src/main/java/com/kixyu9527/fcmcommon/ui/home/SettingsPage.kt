@@ -173,7 +173,6 @@ private fun ThemeModeCard(
 private fun buildAppPreferenceSummary(uiState: HomeUiState): String {
     var enabledCount = 0
     if (uiState.onlyShowPushApps) enabledCount++
-    if (uiState.autoRefreshAppsOnLaunch) enabledCount++
     if (uiState.showSystemApps) enabledCount++
     if (uiState.showPackageNameInList) enabledCount++
     if (uiState.showDisabledApps) enabledCount++

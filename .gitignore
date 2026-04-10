@@ -1,6 +1,8 @@
 *.iml
 .gradle
 /local.properties
+/.idea/
+/.kotlin/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -13,6 +15,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+/keystore.properties
+/keystore/
 /HyperOS_FCM_Live-main
 /fcmfix-master
 /HyperCeiler-main

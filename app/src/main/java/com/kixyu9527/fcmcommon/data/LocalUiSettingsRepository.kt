@@ -23,10 +23,6 @@ class LocalUiSettingsRepository(context: Context) {
         updateSettings(mutableSettings.value.copy(onlyShowPushApps = enabled))
     }
 
-    fun setAutoRefreshAppsOnLaunch(enabled: Boolean) {
-        updateSettings(mutableSettings.value.copy(autoRefreshAppsOnLaunch = enabled))
-    }
-
     fun setShowSystemApps(enabled: Boolean) {
         updateSettings(mutableSettings.value.copy(showSystemApps = enabled))
     }
@@ -50,10 +46,6 @@ class LocalUiSettingsRepository(context: Context) {
             ?.let { saved -> AppThemeMode.entries.firstOrNull { it.name == saved } }
             ?: AppThemeMode.System,
         onlyShowPushApps = preferences.getBoolean(ConfigKeys.KeyOnlyShowPushApps, true),
-        autoRefreshAppsOnLaunch = preferences.getBoolean(
-            ConfigKeys.KeyAutoRefreshAppsOnLaunch,
-            true,
-        ),
         showSystemApps = preferences.getBoolean(ConfigKeys.KeyShowSystemApps, false),
         showPackageNameInList = preferences.getBoolean(
             ConfigKeys.KeyShowPackageNameInList,
@@ -70,10 +62,6 @@ class LocalUiSettingsRepository(context: Context) {
         preferences.edit(commit = true) {
             putString(ConfigKeys.KeyThemeMode, updated.themeMode.name)
             putBoolean(ConfigKeys.KeyOnlyShowPushApps, updated.onlyShowPushApps)
-            putBoolean(
-                ConfigKeys.KeyAutoRefreshAppsOnLaunch,
-                updated.autoRefreshAppsOnLaunch,
-            )
             putBoolean(ConfigKeys.KeyShowSystemApps, updated.showSystemApps)
             putBoolean(
                 ConfigKeys.KeyShowPackageNameInList,
