@@ -3,6 +3,8 @@
 package com.kixyu9527.fcmcommon.ui.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -29,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -106,7 +107,7 @@ private fun AppsToolbarCard(
     onRefreshApps: () -> Unit,
 ) {
     val subtitle = buildString {
-        append("白名单 ${uiState.trackedAppsCount}")
+        append("托管 ${uiState.trackedAppsCount}")
         append(" · ")
         if (uiState.appsScanned || uiState.appsLoading) {
             append("候选 ${uiState.pushCandidateCount}")
@@ -118,7 +119,7 @@ private fun AppsToolbarCard(
     PageCard {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeader(
-                title = "应用白名单",
+                title = "托管应用",
                 subtitle = subtitle,
             )
             OutlinedTextField(
@@ -191,13 +192,13 @@ private fun AppsToolbarCard(
                     onClick = onRefreshApps,
                 )
                 StatusPill(
-                    label = "加入候选",
+                    label = "纳入候选",
                     background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                     foreground = MaterialTheme.colorScheme.primary,
                     onClick = onAllowPushCandidates,
                 )
                 StatusPill(
-                    label = "清空白名单",
+                    label = "清空托管列表",
                     background = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
                     foreground = MaterialTheme.colorScheme.onSurface,
                     onClick = onClearAllowList,
@@ -217,11 +218,12 @@ private fun AppRow(
     val iconBitmap = remember(app.packageName, app.icon) {
         app.icon?.toBitmap(width = 96, height = 96)?.asImageBitmap()
     }
+    val interactionSource = remember(app.packageName) { MutableInteractionSource() }
     val metadata = buildList {
         if (app.hasPushSupport) add("推送候选")
         if (app.isSystemApp) add("系统应用")
         if (!app.isEnabled) add("已停用")
-        if (app.isAllowed) add("已加入")
+        if (app.isAllowed) add("已托管")
     }.joinToString(" · ")
 
     PageCard(
@@ -233,69 +235,67 @@ private fun AppRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                onClick = onClick,
-                modifier = Modifier.weight(1f),
-                color = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                tonalElevation = 0.dp,
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    tonalElevation = 0.dp,
                 ) {
-                    Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        tonalElevation = 0.dp,
-                    ) {
-                        if (iconBitmap != null) {
-                            Image(
-                                bitmap = iconBitmap,
-                                contentDescription = null,
-                                modifier = Modifier.padding(6.dp),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Outlined.Apps,
-                                contentDescription = null,
-                                modifier = Modifier.padding(9.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                    if (iconBitmap != null) {
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.padding(6.dp),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Apps,
+                            contentDescription = null,
+                            modifier = Modifier.padding(9.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = app.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (showPackageName) {
                         Text(
-                            text = app.label,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            text = app.packageName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (showPackageName) {
-                            Text(
-                                text = app.packageName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        if (metadata.isNotBlank()) {
-                            Text(
-                                text = metadata,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                    }
+                    if (metadata.isNotBlank()) {
+                        Text(
+                            text = metadata,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }

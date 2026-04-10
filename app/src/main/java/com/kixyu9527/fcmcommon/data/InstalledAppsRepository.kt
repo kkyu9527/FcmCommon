@@ -8,9 +8,16 @@ import android.content.pm.InstallSourceInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.util.LruCache
 import androidx.core.content.edit
+import androidx.core.graphics.drawable.toBitmap
+import java.io.File
+import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -61,11 +68,13 @@ class InstalledAppsRepository(
 ) {
     private val appContext = context.applicationContext
     private val storageContext = appContext.createDeviceProtectedStorageContext()
+    private val iconCacheDir = File(storageContext.filesDir, "installed_app_icons")
     private val preferences: SharedPreferences =
         storageContext.getSharedPreferences(
             ConfigKeys.InstalledAppsCachePrefsName,
             Context.MODE_PRIVATE,
         )
+    private val iconMemoryCache = LruCache<String, Drawable>(120)
 
     fun canReadInstalledApps(): Boolean = true
 
@@ -94,7 +103,20 @@ class InstalledAppsRepository(
     suspend fun refreshInstalledAppsCache(): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
         val scannedApps = scanInstalledApps()
         persistInstalledAppsCache(scannedApps)
+        persistIconCache(scannedApps)
         scannedApps
+    }
+
+    suspend fun hydrateCachedInstalledAppsIcons(
+        apps: List<InstalledAppInfo>,
+    ): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
+        apps.map { app ->
+            if (app.icon != null) {
+                app
+            } else {
+                app.copy(icon = loadCachedIcon(app.packageName))
+            }
+        }
     }
 
     private fun persistInstalledAppsCache(apps: List<InstalledAppInfo>) {
@@ -152,6 +174,51 @@ class InstalledAppsRepository(
             }
         }
     }
+
+    private fun persistIconCache(apps: List<InstalledAppInfo>) {
+        if (!iconCacheDir.exists()) {
+            iconCacheDir.mkdirs()
+        }
+
+        val activePackages = apps.mapTo(linkedSetOf()) { it.packageName }
+        iconCacheDir.listFiles()
+            ?.filter { cachedFile -> cachedFile.nameWithoutExtension !in activePackages }
+            ?.forEach(File::delete)
+
+        apps.forEach { app ->
+            val icon = app.icon ?: return@forEach
+            runCatching {
+                val bitmap = icon.toBitmap(
+                    width = IconCacheSizePx,
+                    height = IconCacheSizePx,
+                    config = Bitmap.Config.ARGB_8888,
+                )
+                FileOutputStream(iconFile(app.packageName)).use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                }
+                iconMemoryCache.put(
+                    app.packageName,
+                    BitmapDrawable(storageContext.resources, bitmap),
+                )
+            }
+        }
+    }
+
+    private fun loadCachedIcon(packageName: String): Drawable? {
+        iconMemoryCache.get(packageName)?.let { cached ->
+            return cached.constantState?.newDrawable()?.mutate() ?: cached
+        }
+
+        val iconFile = iconFile(packageName)
+        if (!iconFile.exists()) return null
+
+        val bitmap = BitmapFactory.decodeFile(iconFile.absolutePath) ?: return null
+        return BitmapDrawable(storageContext.resources, bitmap).also { drawable ->
+            iconMemoryCache.put(packageName, drawable)
+        }
+    }
+
+    private fun iconFile(packageName: String): File = File(iconCacheDir, "$packageName.png")
 
     private suspend fun scanInstalledApps(): List<InstalledAppInfo> = withContext(Dispatchers.IO) {
         val packageManager = appContext.packageManager
@@ -285,6 +352,8 @@ class InstalledAppsRepository(
         }
     }
 }
+
+private const val IconCacheSizePx = 128
 
 private fun CachedInstalledAppInfo.toInstalledAppInfo(): InstalledAppInfo = InstalledAppInfo(
     packageName = packageName,

@@ -38,9 +38,9 @@ fun DiagnosticsPage(
                         secondary = "当前启用的修复项数量",
                     )
                     InfoLine(
-                        title = "白名单应用",
+                        title = "托管应用",
                         value = uiState.trackedAppsCount.toString(),
-                        secondary = "已加入重点保活的应用数量",
+                        secondary = "已纳入模块托管的应用数量",
                     )
                     InfoLine(
                         title = "推送候选",

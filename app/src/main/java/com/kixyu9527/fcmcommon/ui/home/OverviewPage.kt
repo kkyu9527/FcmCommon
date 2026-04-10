@@ -152,12 +152,14 @@ fun OverviewPage(
                     SectionHeader(
                         title = "概览指标",
                     )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        uiState.overviewStats.forEach { stat ->
-                            MetricTile(stat = stat)
+                    uiState.overviewStats.forEachIndexed { index, stat ->
+                        InfoLine(
+                            title = stat.label,
+                            value = stat.value,
+                            secondary = stat.hint,
+                        )
+                        if (index != uiState.overviewStats.lastIndex) {
+                            SectionDivider()
                         }
                     }
                 }
