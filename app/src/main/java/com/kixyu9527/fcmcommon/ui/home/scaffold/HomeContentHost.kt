@@ -1,5 +1,6 @@
 package com.kixyu9527.fcmcommon.ui.home
 
+import androidx.activity.BackEventCompat
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -34,21 +35,23 @@ private val OverlayBackdropEasing = CubicBezierEasing(0.2f, 0.9f, 0.2f, 1f)
 private val SecondaryPageEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 private const val OverlayOpenOffsetFraction = 0.14f
 private const val OverlayCloseTravelMultiplier = 1.08f
-private const val OverlayBaseScaleDelta = 0.04f
 private const val OverlayBaseParallaxFraction = 0.03f
 private const val PreferredHighRefreshRate = 120f
+private const val OverlayDismissThreshold = 0.001f
 
 @Composable
 internal fun HomeContentHost(
     uiState: HomeUiState,
     pagerState: PagerState,
     pagerNavigator: HomePagerNavigator,
+    predictiveBackState: HomePredictiveBackState,
     listStates: HomePageListStates,
     actions: HomeScaffoldActions,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val pageWidth = with(LocalDensity.current) { maxWidth.toPx() }
         val offscreenOffset = with(LocalDensity.current) { 36.dp.toPx() }
+        val closeTravelDistance = (pageWidth * OverlayCloseTravelMultiplier) + offscreenOffset
         var renderedSecondaryPage by remember { mutableStateOf(uiState.secondaryPage) }
         var renderedTertiaryPage by remember { mutableStateOf(uiState.tertiaryPage) }
         val secondaryVisible = uiState.secondaryPage != null
@@ -56,17 +59,17 @@ internal fun HomeContentHost(
         val latestSelectedPage by rememberUpdatedState(uiState.selectedPage)
         val latestSecondaryPage by rememberUpdatedState(uiState.secondaryPage)
         val latestTertiaryPage by rememberUpdatedState(uiState.tertiaryPage)
+        val predictiveDirection = if (predictiveBackState.swipeEdge == BackEventCompat.EDGE_RIGHT) {
+            -1f
+        } else {
+            1f
+        }
         val secondaryOverlayProgress by animateFloatAsState(
             targetValue = if (secondaryVisible) 1f else 0f,
             animationSpec = tween(
                 durationMillis = if (secondaryVisible) 360 else 420,
                 easing = SecondaryPageEasing,
             ),
-            finishedListener = { animatedValue ->
-                if (animatedValue == 0f && !secondaryVisible) {
-                    renderedSecondaryPage = null
-                }
-            },
             label = "secondary_page_overlay",
         )
         val tertiaryOverlayProgress by animateFloatAsState(
@@ -75,11 +78,6 @@ internal fun HomeContentHost(
                 durationMillis = if (tertiaryVisible) 360 else 420,
                 easing = SecondaryPageEasing,
             ),
-            finishedListener = { animatedValue ->
-                if (animatedValue == 0f && !tertiaryVisible) {
-                    renderedTertiaryPage = null
-                }
-            },
             label = "tertiary_page_overlay",
         )
 
@@ -92,6 +90,61 @@ internal fun HomeContentHost(
         LaunchedEffect(uiState.tertiaryPage) {
             if (uiState.tertiaryPage != null) {
                 renderedTertiaryPage = uiState.tertiaryPage
+            }
+        }
+
+        LaunchedEffect(
+            secondaryVisible,
+            secondaryOverlayProgress,
+            renderedSecondaryPage,
+        ) {
+            if (
+                !secondaryVisible &&
+                renderedSecondaryPage != null &&
+                secondaryOverlayProgress <= OverlayDismissThreshold
+            ) {
+                renderedSecondaryPage = null
+            }
+        }
+
+        LaunchedEffect(
+            tertiaryVisible,
+            tertiaryOverlayProgress,
+            renderedTertiaryPage,
+        ) {
+            if (
+                !tertiaryVisible &&
+                renderedTertiaryPage != null &&
+                tertiaryOverlayProgress <= OverlayDismissThreshold
+            ) {
+                renderedTertiaryPage = null
+            }
+        }
+
+        LaunchedEffect(
+            predictiveBackState.committed,
+            predictiveBackState.target,
+            secondaryVisible,
+            tertiaryVisible,
+            renderedSecondaryPage,
+            renderedTertiaryPage,
+        ) {
+            if (!predictiveBackState.committed) return@LaunchedEffect
+
+            when (predictiveBackState.target) {
+                PredictiveBackTarget.Secondary -> {
+                    if (!secondaryVisible && renderedSecondaryPage == null) {
+                        predictiveBackState.reset()
+                    }
+                }
+
+                PredictiveBackTarget.Tertiary -> {
+                    if (!tertiaryVisible && renderedTertiaryPage == null) {
+                        predictiveBackState.reset()
+                    }
+                }
+
+                null -> Unit
             }
         }
 
@@ -109,19 +162,43 @@ internal fun HomeContentHost(
                 }
         }
 
-        val secondaryOverlayTranslationX = overlayTranslationX(
-            overlayVisible = secondaryVisible,
-            overlayProgress = secondaryOverlayProgress,
-            pageWidth = pageWidth,
-            offscreenOffset = offscreenOffset,
-        )
-        val tertiaryOverlayTranslationX = overlayTranslationX(
-            overlayVisible = tertiaryVisible,
-            overlayProgress = tertiaryOverlayProgress,
-            pageWidth = pageWidth,
-            offscreenOffset = offscreenOffset,
-        )
+        val secondaryOverlayTranslationX = if (
+            predictiveBackState.target == PredictiveBackTarget.Secondary &&
+            (predictiveBackState.isActive || predictiveBackState.committed)
+        ) {
+            closeTravelDistance * predictiveBackState.progress * predictiveDirection
+        } else {
+            overlayTranslationX(
+                overlayVisible = secondaryVisible,
+                overlayProgress = secondaryOverlayProgress,
+                pageWidth = pageWidth,
+                offscreenOffset = offscreenOffset,
+            )
+        }
+        val tertiaryOverlayTranslationX = if (
+            predictiveBackState.target == PredictiveBackTarget.Tertiary &&
+            (predictiveBackState.isActive || predictiveBackState.committed)
+        ) {
+            closeTravelDistance * predictiveBackState.progress * predictiveDirection
+        } else {
+            overlayTranslationX(
+                overlayVisible = tertiaryVisible,
+                overlayProgress = tertiaryOverlayProgress,
+                pageWidth = pageWidth,
+                offscreenOffset = offscreenOffset,
+            )
+        }
         val baseLayerProgress = when {
+            predictiveBackState.target == PredictiveBackTarget.Secondary &&
+                (predictiveBackState.isActive || predictiveBackState.committed) -> {
+                (1f - predictiveBackState.progress).coerceIn(0f, 1f)
+            }
+
+            predictiveBackState.target == PredictiveBackTarget.Tertiary &&
+                (predictiveBackState.isActive || predictiveBackState.committed) -> {
+                if (renderedSecondaryPage != null || secondaryVisible) 1f else 0f
+            }
+
             renderedTertiaryPage != null || tertiaryVisible -> tertiaryOverlayProgress
             renderedSecondaryPage != null || secondaryVisible -> secondaryOverlayProgress
             else -> 0f
@@ -130,9 +207,10 @@ internal fun HomeContentHost(
         val baseLayerTranslationX = -pageWidth *
             OverlayBaseParallaxFraction *
             easedBaseLayerProgress
-        val baseLayerScale = 1f - (OverlayBaseScaleDelta * easedBaseLayerProgress)
         val prefersHighRefreshRate =
             pagerNavigator.isNavigating ||
+                predictiveBackState.isActive ||
+                predictiveBackState.committed ||
                 (secondaryVisible && secondaryOverlayProgress < 1f) ||
                 (!secondaryVisible && secondaryOverlayProgress > 0f) ||
                 (tertiaryVisible && tertiaryOverlayProgress < 1f) ||
@@ -154,8 +232,6 @@ internal fun HomeContentHost(
                     .fillMaxSize()
                     .graphicsLayer {
                         translationX = baseLayerTranslationX
-                        scaleX = baseLayerScale
-                        scaleY = baseLayerScale
                     },
             ) {
                 TopLevelPageContent(

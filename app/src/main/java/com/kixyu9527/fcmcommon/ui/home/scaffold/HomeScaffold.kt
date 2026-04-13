@@ -1,5 +1,9 @@
 package com.kixyu9527.fcmcommon.ui.home
 
+import androidx.activity.ExperimentalActivityApi
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -20,6 +24,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.kixyu9527.fcmcommon.data.AppThemeMode
 import com.kixyu9527.fcmcommon.data.FeatureKey
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
 
 internal data class HomePageListStates(
     val overview: LazyListState,
@@ -52,6 +58,9 @@ internal data class HomeScaffoldActions(
     val onRefreshApps: () -> Unit,
 )
 
+private val PredictiveBackSettleEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+
+@OptIn(ExperimentalActivityApi::class)
 @Composable
 fun HomeScaffold(
     uiState: HomeUiState,
@@ -90,6 +99,7 @@ fun HomeScaffold(
         pagerState = pagerState,
         coroutineScope = rememberCoroutineScope(),
     )
+    val predictiveBackState = rememberHomePredictiveBackState()
     val actions = remember(
         onPageSelected,
         onOpenSecondaryPage,
@@ -128,6 +138,53 @@ fun HomeScaffold(
             onRefreshAll = onRefreshAll,
             onRefreshApps = onRefreshApps,
         )
+    }
+
+    PredictiveBackHandler(enabled = uiState.canNavigateBack) { progress ->
+        val target = if (uiState.tertiaryPage != null) {
+            PredictiveBackTarget.Tertiary
+        } else {
+            PredictiveBackTarget.Secondary
+        }
+
+        try {
+            progress.collect { backEvent ->
+                predictiveBackState.update(target, backEvent)
+            }
+
+            if (predictiveBackState.isActive) {
+                animate(
+                    initialValue = predictiveBackState.progress,
+                    targetValue = 1f,
+                    animationSpec = androidx.compose.animation.core.tween(
+                        durationMillis = 120,
+                        easing = PredictiveBackSettleEasing,
+                    ),
+                ) { value, _ ->
+                    predictiveBackState.updateProgress(value)
+                }
+                predictiveBackState.markCommitted()
+            }
+
+            onNavigateBack()
+        } catch (_: CancellationException) {
+            if (predictiveBackState.isActive) {
+                animate(
+                    initialValue = predictiveBackState.progress,
+                    targetValue = 0f,
+                    animationSpec = androidx.compose.animation.core.tween(
+                        durationMillis = 240,
+                        easing = PredictiveBackSettleEasing,
+                    ),
+                ) { value, _ ->
+                    predictiveBackState.updateProgress(value)
+                }
+            }
+        } finally {
+            if (!predictiveBackState.committed) {
+                predictiveBackState.reset()
+            }
+        }
     }
 
     LaunchedEffect(uiState.secondaryPage) {
@@ -174,6 +231,7 @@ fun HomeScaffold(
                 uiState = uiState,
                 pagerState = pagerState,
                 pagerNavigator = pagerNavigator,
+                predictiveBackState = predictiveBackState,
                 listStates = listStates,
                 actions = actions,
             )

@@ -1,6 +1,5 @@
 package com.kixyu9527.fcmcommon.ui.home
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -38,10 +37,6 @@ fun HomeRoute(
     }
 
     FcmCommonTheme(darkTheme = darkTheme) {
-        BackHandler(enabled = uiState.value.canNavigateBack) {
-            viewModel.navigateBack()
-        }
-
         HomeScaffold(
             uiState = uiState.value,
             onPageSelected = viewModel::selectPage,
