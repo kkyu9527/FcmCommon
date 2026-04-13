@@ -65,6 +65,7 @@ private data class CachedInstalledAppInfo(
 
 class InstalledAppsRepository(
     context: Context,
+    private val installedAppsAccessChecker: () -> Boolean = { true },
 ) {
     private val appContext = context.applicationContext
     private val storageContext = appContext.createDeviceProtectedStorageContext()
@@ -76,7 +77,7 @@ class InstalledAppsRepository(
         )
     private val iconMemoryCache = LruCache<String, Drawable>(120)
 
-    fun canReadInstalledApps(): Boolean = true
+    fun canReadInstalledApps(): Boolean = installedAppsAccessChecker()
 
     fun loadCachedInstalledAppsSnapshot(): InstalledAppsCacheSnapshot {
         val rawCache = preferences.getString(ConfigKeys.KeyInstalledAppsCache, null)
