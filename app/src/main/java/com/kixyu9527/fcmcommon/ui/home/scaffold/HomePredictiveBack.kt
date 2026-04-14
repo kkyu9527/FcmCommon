@@ -32,6 +32,12 @@ internal class HomePredictiveBackState {
     val isActive: Boolean
         get() = target != null
 
+    val isGestureInProgress: Boolean
+        get() = target != null && !committed
+
+    val isSettlingDismiss: Boolean
+        get() = target != null && committed
+
     fun update(target: PredictiveBackTarget, event: BackEventCompat) {
         this.target = target
         swipeEdge = event.swipeEdge

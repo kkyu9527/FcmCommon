@@ -25,6 +25,7 @@ internal class HomeUiStateAssembler(
             selectedPage = seed.page,
             secondaryPage = seed.secondaryPage,
             tertiaryPage = seed.tertiaryPage,
+            navigationEpoch = seed.navigationEpoch,
             themeMode = seed.settings.themeMode,
             connection = seed.connection,
             features = FeatureKey.entries.map { featureKey ->

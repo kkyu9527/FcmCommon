@@ -13,6 +13,7 @@ internal data class HomeUiSeed(
     val page: AppPage,
     val secondaryPage: SecondaryPage?,
     val tertiaryPage: TertiaryPage?,
+    val navigationEpoch: Long,
     val settings: UiSettings,
     val connection: XposedServiceState,
     val query: String,
@@ -25,6 +26,7 @@ internal data class HomeNavigationSeed(
     val page: AppPage,
     val secondaryPage: SecondaryPage?,
     val tertiaryPage: TertiaryPage?,
+    val navigationEpoch: Long,
     val query: String,
     val selectedAppPackage: String?,
 )
@@ -52,24 +54,43 @@ private data class HomeClockSeed(
     val diagnosticsState: FcmDiagnosticsState,
 )
 
+private data class HomeNavigationRouteSeed(
+    val page: AppPage,
+    val secondaryPage: SecondaryPage?,
+    val tertiaryPage: TertiaryPage?,
+    val navigationEpoch: Long,
+)
+
 internal class HomeNavigationStateContainer {
     private val selectedPage = MutableStateFlow(AppPage.Overview)
     private val secondaryPage = MutableStateFlow<SecondaryPage?>(null)
     private val tertiaryPage = MutableStateFlow<TertiaryPage?>(null)
     private val selectedAppPackage = MutableStateFlow<String?>(null)
     private val searchQuery = MutableStateFlow("")
+    private val navigationEpoch = MutableStateFlow(0L)
 
     val seed = combine(
-        selectedPage,
-        secondaryPage,
-        tertiaryPage,
+        combine(
+            selectedPage,
+            secondaryPage,
+            tertiaryPage,
+            navigationEpoch,
+        ) { page, secondary, tertiary, epoch ->
+            HomeNavigationRouteSeed(
+                page = page,
+                secondaryPage = secondary,
+                tertiaryPage = tertiary,
+                navigationEpoch = epoch,
+            )
+        },
         searchQuery,
         selectedAppPackage,
-    ) { page, secondary, tertiary, query, appPackage ->
+    ) { route, query, appPackage ->
         HomeNavigationSeed(
-            page = page,
-            secondaryPage = secondary,
-            tertiaryPage = tertiary,
+            page = route.page,
+            secondaryPage = route.secondaryPage,
+            tertiaryPage = route.tertiaryPage,
+            navigationEpoch = route.navigationEpoch,
             query = query,
             selectedAppPackage = appPackage,
         )
@@ -79,16 +100,19 @@ internal class HomeNavigationStateContainer {
         tertiaryPage.value = null
         secondaryPage.value = null
         selectedPage.value = page
+        bumpNavigationEpoch()
     }
 
     fun openSecondaryPage(page: SecondaryPage) {
         tertiaryPage.value = null
         secondaryPage.value = page
+        bumpNavigationEpoch()
     }
 
     fun openTertiaryPage(page: TertiaryPage) {
         if (secondaryPage.value != null) {
             tertiaryPage.value = page
+            bumpNavigationEpoch()
         }
     }
 
@@ -96,6 +120,7 @@ internal class HomeNavigationStateContainer {
         selectedAppPackage.value = packageName
         tertiaryPage.value = null
         secondaryPage.value = SecondaryPage.AppDetails(packageName)
+        bumpNavigationEpoch()
     }
 
     fun navigateBack() {
@@ -104,10 +129,15 @@ internal class HomeNavigationStateContainer {
         } else {
             secondaryPage.value = null
         }
+        bumpNavigationEpoch()
     }
 
     fun setSearchQuery(query: String) {
         searchQuery.value = query
+    }
+
+    private fun bumpNavigationEpoch() {
+        navigationEpoch.value += 1L
     }
 }
 

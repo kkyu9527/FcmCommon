@@ -2,6 +2,13 @@
 
 package com.kixyu9527.fcmcommon.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -48,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
@@ -114,7 +122,57 @@ fun PageHeader(
 }
 
 @Composable
-fun BoxScope.FloatingCapsuleBottomBar(
+fun BoxScope.AnimatedFloatingCapsuleBottomBar(
+    visible: Boolean,
+    selectedPage: AppPage,
+    onPageSelected: (AppPage) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier.align(Alignment.BottomCenter),
+        enter = fadeIn(
+            animationSpec = tween(durationMillis = 220, delayMillis = 40),
+        ) + slideInVertically(
+            animationSpec = tween(
+                durationMillis = 320,
+                easing = MiuixBottomBarEasing,
+            ),
+            initialOffsetY = { fullHeight -> fullHeight / 2 },
+        ) + scaleIn(
+            animationSpec = tween(
+                durationMillis = 320,
+                easing = MiuixBottomBarEasing,
+            ),
+            initialScale = 0.92f,
+            transformOrigin = TransformOrigin(0.5f, 1f),
+        ),
+        exit = fadeOut(
+            animationSpec = tween(durationMillis = 150),
+        ) + slideOutVertically(
+            animationSpec = tween(
+                durationMillis = 220,
+                easing = MiuixBottomBarEasing,
+            ),
+            targetOffsetY = { fullHeight -> fullHeight / 3 },
+        ) + scaleOut(
+            animationSpec = tween(
+                durationMillis = 220,
+                easing = MiuixBottomBarEasing,
+            ),
+            targetScale = 0.96f,
+            transformOrigin = TransformOrigin(0.5f, 1f),
+        ),
+        label = "floating_bottom_bar_visibility",
+    ) {
+        FloatingCapsuleBottomBar(
+            selectedPage = selectedPage,
+            onPageSelected = onPageSelected,
+        )
+    }
+}
+
+@Composable
+private fun FloatingCapsuleBottomBar(
     selectedPage: AppPage,
     onPageSelected: (AppPage) -> Unit,
 ) {
@@ -125,7 +183,6 @@ fun BoxScope.FloatingCapsuleBottomBar(
 
     Box(
         modifier = Modifier
-            .align(Alignment.BottomCenter)
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 12.dp + bottomInset)
             .testTag(TestTags.BottomBar),

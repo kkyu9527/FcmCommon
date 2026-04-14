@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ private const val OverlayCloseTravelMultiplier = 1.08f
 private const val OverlayBaseParallaxFraction = 0.03f
 private const val PreferredHighRefreshRate = 120f
 private const val OverlayDismissThreshold = 0.001f
+private const val OverlayAnimationDurationMillis = 300
 
 @Composable
 internal fun HomeContentHost(
@@ -56,9 +58,27 @@ internal fun HomeContentHost(
         var renderedTertiaryPage by remember { mutableStateOf(uiState.tertiaryPage) }
         val secondaryVisible = uiState.secondaryPage != null
         val tertiaryVisible = uiState.tertiaryPage != null
+        val activeSecondaryPage = uiState.secondaryPage ?: renderedSecondaryPage
+        val activeTertiaryPage = uiState.tertiaryPage ?: renderedTertiaryPage
         val latestSelectedPage by rememberUpdatedState(uiState.selectedPage)
         val latestSecondaryPage by rememberUpdatedState(uiState.secondaryPage)
         val latestTertiaryPage by rememberUpdatedState(uiState.tertiaryPage)
+        val usesSecondaryPredictiveBack = when (predictiveBackState.target) {
+            PredictiveBackTarget.Secondary -> {
+                predictiveBackState.isGestureInProgress ||
+                    (predictiveBackState.isSettlingDismiss && !secondaryVisible)
+            }
+
+            else -> false
+        }
+        val usesTertiaryPredictiveBack = when (predictiveBackState.target) {
+            PredictiveBackTarget.Tertiary -> {
+                predictiveBackState.isGestureInProgress ||
+                    (predictiveBackState.isSettlingDismiss && !tertiaryVisible)
+            }
+
+            else -> false
+        }
         val predictiveDirection = if (predictiveBackState.swipeEdge == BackEventCompat.EDGE_RIGHT) {
             -1f
         } else {
@@ -67,7 +87,7 @@ internal fun HomeContentHost(
         val secondaryOverlayProgress by animateFloatAsState(
             targetValue = if (secondaryVisible) 1f else 0f,
             animationSpec = tween(
-                durationMillis = if (secondaryVisible) 360 else 420,
+                durationMillis = OverlayAnimationDurationMillis,
                 easing = SecondaryPageEasing,
             ),
             label = "secondary_page_overlay",
@@ -75,29 +95,19 @@ internal fun HomeContentHost(
         val tertiaryOverlayProgress by animateFloatAsState(
             targetValue = if (tertiaryVisible) 1f else 0f,
             animationSpec = tween(
-                durationMillis = if (tertiaryVisible) 360 else 420,
+                durationMillis = OverlayAnimationDurationMillis,
                 easing = SecondaryPageEasing,
             ),
             label = "tertiary_page_overlay",
         )
 
-        LaunchedEffect(uiState.secondaryPage) {
-            if (uiState.secondaryPage != null) {
-                renderedSecondaryPage = uiState.secondaryPage
+        SideEffect {
+            uiState.secondaryPage?.let { secondaryPage ->
+                renderedSecondaryPage = secondaryPage
             }
-        }
-
-        LaunchedEffect(uiState.tertiaryPage) {
-            if (uiState.tertiaryPage != null) {
-                renderedTertiaryPage = uiState.tertiaryPage
+            uiState.tertiaryPage?.let { tertiaryPage ->
+                renderedTertiaryPage = tertiaryPage
             }
-        }
-
-        LaunchedEffect(
-            secondaryVisible,
-            secondaryOverlayProgress,
-            renderedSecondaryPage,
-        ) {
             if (
                 !secondaryVisible &&
                 renderedSecondaryPage != null &&
@@ -105,13 +115,6 @@ internal fun HomeContentHost(
             ) {
                 renderedSecondaryPage = null
             }
-        }
-
-        LaunchedEffect(
-            tertiaryVisible,
-            tertiaryOverlayProgress,
-            renderedTertiaryPage,
-        ) {
             if (
                 !tertiaryVisible &&
                 renderedTertiaryPage != null &&
@@ -126,20 +129,20 @@ internal fun HomeContentHost(
             predictiveBackState.target,
             secondaryVisible,
             tertiaryVisible,
-            renderedSecondaryPage,
-            renderedTertiaryPage,
+            activeSecondaryPage,
+            activeTertiaryPage,
         ) {
             if (!predictiveBackState.committed) return@LaunchedEffect
 
             when (predictiveBackState.target) {
                 PredictiveBackTarget.Secondary -> {
-                    if (!secondaryVisible && renderedSecondaryPage == null) {
+                    if (secondaryVisible || activeSecondaryPage == null) {
                         predictiveBackState.reset()
                     }
                 }
 
                 PredictiveBackTarget.Tertiary -> {
-                    if (!tertiaryVisible && renderedTertiaryPage == null) {
+                    if (tertiaryVisible || activeTertiaryPage == null) {
                         predictiveBackState.reset()
                     }
                 }
@@ -162,10 +165,7 @@ internal fun HomeContentHost(
                 }
         }
 
-        val secondaryOverlayTranslationX = if (
-            predictiveBackState.target == PredictiveBackTarget.Secondary &&
-            (predictiveBackState.isActive || predictiveBackState.committed)
-        ) {
+        val secondaryOverlayTranslationX = if (usesSecondaryPredictiveBack) {
             closeTravelDistance * predictiveBackState.progress * predictiveDirection
         } else {
             overlayTranslationX(
@@ -175,10 +175,7 @@ internal fun HomeContentHost(
                 offscreenOffset = offscreenOffset,
             )
         }
-        val tertiaryOverlayTranslationX = if (
-            predictiveBackState.target == PredictiveBackTarget.Tertiary &&
-            (predictiveBackState.isActive || predictiveBackState.committed)
-        ) {
+        val tertiaryOverlayTranslationX = if (usesTertiaryPredictiveBack) {
             closeTravelDistance * predictiveBackState.progress * predictiveDirection
         } else {
             overlayTranslationX(
@@ -189,18 +186,16 @@ internal fun HomeContentHost(
             )
         }
         val baseLayerProgress = when {
-            predictiveBackState.target == PredictiveBackTarget.Secondary &&
-                (predictiveBackState.isActive || predictiveBackState.committed) -> {
+            usesSecondaryPredictiveBack -> {
                 (1f - predictiveBackState.progress).coerceIn(0f, 1f)
             }
 
-            predictiveBackState.target == PredictiveBackTarget.Tertiary &&
-                (predictiveBackState.isActive || predictiveBackState.committed) -> {
-                if (renderedSecondaryPage != null || secondaryVisible) 1f else 0f
+            usesTertiaryPredictiveBack -> {
+                if (activeSecondaryPage != null || secondaryVisible) 1f else 0f
             }
 
-            renderedTertiaryPage != null || tertiaryVisible -> tertiaryOverlayProgress
-            renderedSecondaryPage != null || secondaryVisible -> secondaryOverlayProgress
+            activeTertiaryPage != null || tertiaryVisible -> tertiaryOverlayProgress
+            activeSecondaryPage != null || secondaryVisible -> secondaryOverlayProgress
             else -> 0f
         }.coerceIn(0f, 1f)
         val easedBaseLayerProgress = OverlayBackdropEasing.transform(baseLayerProgress)
@@ -209,8 +204,8 @@ internal fun HomeContentHost(
             easedBaseLayerProgress
         val prefersHighRefreshRate =
             pagerNavigator.isNavigating ||
-                predictiveBackState.isActive ||
-                predictiveBackState.committed ||
+                usesSecondaryPredictiveBack ||
+                usesTertiaryPredictiveBack ||
                 (secondaryVisible && secondaryOverlayProgress < 1f) ||
                 (!secondaryVisible && secondaryOverlayProgress > 0f) ||
                 (tertiaryVisible && tertiaryOverlayProgress < 1f) ||
@@ -242,7 +237,7 @@ internal fun HomeContentHost(
                 )
             }
 
-            if (renderedSecondaryPage != null || secondaryOverlayProgress > 0f) {
+            if (activeSecondaryPage != null || secondaryOverlayProgress > 0f) {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
@@ -260,7 +255,7 @@ internal fun HomeContentHost(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background),
                     ) {
-                        renderedSecondaryPage?.let { secondaryPage ->
+                        activeSecondaryPage?.let { secondaryPage ->
                             SecondaryPageContent(
                                 page = secondaryPage,
                                 uiState = uiState,
@@ -272,7 +267,7 @@ internal fun HomeContentHost(
                 }
             }
 
-            if (renderedTertiaryPage != null || tertiaryOverlayProgress > 0f) {
+            if (activeTertiaryPage != null || tertiaryOverlayProgress > 0f) {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
@@ -290,7 +285,7 @@ internal fun HomeContentHost(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background),
                     ) {
-                        renderedTertiaryPage?.let { tertiaryPage ->
+                        activeTertiaryPage?.let { tertiaryPage ->
                             TertiaryPageContent(
                                 page = tertiaryPage,
                                 uiState = uiState,

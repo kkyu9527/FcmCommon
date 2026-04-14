@@ -125,6 +125,7 @@ data class HomeUiState(
     val selectedPage: AppPage = AppPage.Overview,
     val secondaryPage: SecondaryPage? = null,
     val tertiaryPage: TertiaryPage? = null,
+    val navigationEpoch: Long = 0L,
     val themeMode: AppThemeMode = AppThemeMode.System,
     val connection: XposedServiceState = XposedServiceState.bootstrap(),
     val features: List<FeatureCardModel> = emptyList(),

@@ -56,6 +56,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             page = navigation.page,
             secondaryPage = navigation.secondaryPage,
             tertiaryPage = navigation.tertiaryPage,
+            navigationEpoch = navigation.navigationEpoch,
             settings = settings,
             connection = connection,
             query = navigation.query,

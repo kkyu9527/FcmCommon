@@ -152,7 +152,7 @@ fun HomeScaffold(
                 predictiveBackState.update(target, backEvent)
             }
 
-            if (predictiveBackState.isActive) {
+            if (predictiveBackState.isGestureInProgress) {
                 animate(
                     initialValue = predictiveBackState.progress,
                     targetValue = 1f,
@@ -168,7 +168,7 @@ fun HomeScaffold(
 
             onNavigateBack()
         } catch (_: CancellationException) {
-            if (predictiveBackState.isActive) {
+            if (predictiveBackState.isGestureInProgress) {
                 animate(
                     initialValue = predictiveBackState.progress,
                     targetValue = 0f,
@@ -235,16 +235,15 @@ fun HomeScaffold(
                 listStates = listStates,
                 actions = actions,
             )
-            if (uiState.showsBottomBar) {
-                FloatingCapsuleBottomBar(
-                    selectedPage = pageAtIndex(pagerNavigator.selectedPage),
-                    onPageSelected = { page ->
-                        if (pageIndex(page) != pagerNavigator.selectedPage) {
-                            pagerNavigator.animateToPage(pageIndex(page))
-                        }
-                    },
-                )
-            }
+            AnimatedFloatingCapsuleBottomBar(
+                visible = uiState.showsBottomBar,
+                selectedPage = pageAtIndex(pagerNavigator.selectedPage),
+                onPageSelected = { page ->
+                    if (pageIndex(page) != pagerNavigator.selectedPage) {
+                        pagerNavigator.animateToPage(pageIndex(page))
+                    }
+                },
+            )
         }
     }
 }
