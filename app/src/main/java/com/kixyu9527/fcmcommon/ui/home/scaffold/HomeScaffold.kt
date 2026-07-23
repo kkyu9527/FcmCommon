@@ -61,6 +61,7 @@ internal fun HomeScaffold(
     uiState: HomeUiState,
     listStates: HomePageListStates,
     actions: HomeScaffoldActions,
+    isBackHandlerEnabled: Boolean,
 ) {
     val pagerState = rememberPagerState(
         initialPage = pageIndex(uiState.selectedPage),
@@ -71,7 +72,7 @@ internal fun HomeScaffold(
 
     NavigationBackHandler(
         state = navEventState,
-        isBackEnabled = uiState.selectedPage != AppPage.Overview,
+        isBackEnabled = isBackHandlerEnabled && uiState.selectedPage != AppPage.Overview,
         onBackCompleted = {
             coroutineScope.launch {
                 pagerState.animateScrollToPage(pageIndex(AppPage.Overview))

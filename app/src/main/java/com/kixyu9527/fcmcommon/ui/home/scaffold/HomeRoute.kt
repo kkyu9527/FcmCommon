@@ -52,6 +52,7 @@ fun HomeRoute(
 
     FcmCommonTheme(darkTheme = darkTheme) {
         val listStates = rememberHomePageListStates()
+        val isMainDestination = backStack.lastOrNull() == Route.Main
         val onNavigateBack = {
             if (backStack.size > 1) {
                 backStack.removeAt(backStack.lastIndex)
@@ -114,6 +115,7 @@ fun HomeRoute(
                             uiState = uiState,
                             listStates = listStates,
                             actions = actions,
+                            isBackHandlerEnabled = isMainDestination,
                         )
                     }
                     entry<Route.AppPreferences> {

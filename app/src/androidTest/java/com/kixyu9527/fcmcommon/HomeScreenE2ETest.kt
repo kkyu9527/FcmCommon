@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kixyu9527.fcmcommon.data.AppThemeMode
 import com.kixyu9527.fcmcommon.data.FeatureKey
@@ -61,6 +62,17 @@ class HomeScreenE2ETest {
         composeRule.onNodeWithTag(TestTags.TopBarBack).performClick()
 
         composeRule.onNodeWithTag(TestTags.PageSettings).assertIsDisplayed()
+    }
+
+    @Test
+    fun secondaryPage_immediateSystemBackReturnsToOriginPage() {
+        composeRule.onNodeWithTag(TestTags.navItem("settings")).performClick()
+        composeRule.onNodeWithTag(TestTags.SettingsDiagnosticsEntry).performClick()
+
+        pressBack()
+
+        composeRule.onNodeWithTag(TestTags.PageSettings).assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.BottomBar).assertIsDisplayed()
     }
 
     @Test
