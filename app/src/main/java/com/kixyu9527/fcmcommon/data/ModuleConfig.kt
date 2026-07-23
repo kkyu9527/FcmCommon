@@ -9,9 +9,6 @@ data class ModuleConfig(
     fun hasFeature(prefKey: String): Boolean =
         enabledFeatures.any { it.prefKey == prefKey }
 
-    fun withEnabledFeatures(featureKeys: Set<FeatureKey>): ModuleConfig =
-        copy(enabledFeatures = featureKeys.toSet())
-
     fun withAllowList(packageNames: Set<String>): ModuleConfig =
         copy(allowList = packageNames.toSet())
 

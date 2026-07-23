@@ -24,48 +24,32 @@ enum class AppPage(
 }
 
 sealed class SecondaryPage(
-    val route: String,
     val title: String,
-    val parentPage: AppPage,
 ) {
     data object AppPreferences : SecondaryPage(
-        route = "app_preferences",
         title = "应用偏好",
-        parentPage = AppPage.Settings,
     )
 
     data object Features : SecondaryPage(
-        route = "features",
         title = "功能配置",
-        parentPage = AppPage.Settings,
     )
 
     data object Diagnostics : SecondaryPage(
-        route = "diagnostics",
         title = "模块状态",
-        parentPage = AppPage.Settings,
     )
 
     data class AppDetails(
         val packageName: String,
     ) : SecondaryPage(
-        route = "app_details",
         title = "应用详情",
-        parentPage = AppPage.Apps,
     )
 }
 
 sealed class TertiaryPage(
-    val route: String,
     val title: String,
-    val parentPage: AppPage,
-    val parentSecondaryPage: SecondaryPage,
 ) {
     data object ModuleLogs : TertiaryPage(
-        route = "module_logs",
         title = "模块日志",
-        parentPage = AppPage.Settings,
-        parentSecondaryPage = SecondaryPage.Diagnostics,
     )
 }
 
@@ -141,33 +125,10 @@ data class HomeUiState(
     val trackedAppsCount: Int = 0,
     val pushCandidateCount: Int = 0,
     val scopeStatuses: List<ScopeStatusModel> = emptyList(),
-    val connectionDurationLabel: String = "未连接",
     val connectionSummary: String = "暂无记录",
     val recentConnectionEvents: List<ConnectionEventModel> = emptyList(),
-    val fcmDiagnosticsConnected: Boolean = false,
-    val fcmDiagnosticsDurationLabel: String = "未连接",
-    val fcmDiagnosticsSummary: String = "暂无记录",
     val selectedAppDetails: AppDetailInfoModel? = null,
 ) {
     val enabledFeatureCount: Int
         get() = features.count { it.enabled }
-
-    val currentParentPage: AppPage
-        get() = tertiaryPage?.parentPage ?: secondaryPage?.parentPage ?: selectedPage
-
-    val currentParentSecondaryPage: SecondaryPage?
-        get() = tertiaryPage?.parentSecondaryPage ?: secondaryPage
-
-    val headerTitle: String
-        get() = tertiaryPage?.title ?: when (secondaryPage) {
-            is SecondaryPage.AppDetails -> selectedAppDetails?.label ?: secondaryPage.title
-            null -> selectedPage.title
-            else -> secondaryPage.title
-        }
-
-    val showsBottomBar: Boolean
-        get() = secondaryPage == null && tertiaryPage == null
-
-    val canNavigateBack: Boolean
-        get() = secondaryPage != null || tertiaryPage != null
 }

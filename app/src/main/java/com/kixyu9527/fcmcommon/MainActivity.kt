@@ -1,7 +1,6 @@
 package com.kixyu9527.fcmcommon
 
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
 import android.content.res.Configuration
 import androidx.activity.ComponentActivity
@@ -17,12 +16,16 @@ class MainActivity : ComponentActivity() {
             darkTheme = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES,
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
+        window.isNavigationBarContrastEnforced = false
+        applyPreferredRefreshRate()
         setContent {
             HomeRoute(applySystemBarStyle = ::applySystemBarStyle)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyPreferredRefreshRate()
     }
 
     private fun applySystemBarStyle(darkTheme: Boolean) {
@@ -36,5 +39,13 @@ class MainActivity : ComponentActivity() {
                 darkScrim = Color.TRANSPARENT,
             ) { darkTheme },
         )
+    }
+
+    private fun applyPreferredRefreshRate() {
+        val attributes = window.attributes
+        if (attributes.preferredRefreshRate < 120f) {
+            attributes.preferredRefreshRate = 120f
+            window.attributes = attributes
+        }
     }
 }

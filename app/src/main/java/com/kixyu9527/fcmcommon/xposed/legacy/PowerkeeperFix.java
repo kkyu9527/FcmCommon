@@ -16,6 +16,7 @@ public class PowerkeeperFix extends LegacyHookModule {
         startHook();
     }
 
+    @SuppressWarnings("unchecked")
     protected void startHook() {
         try {
             Class<?> milletConfig = XposedHelpers.findClassIfExists(

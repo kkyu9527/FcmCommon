@@ -1,8 +1,10 @@
 import java.util.Properties
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -15,14 +17,14 @@ if (hasReleaseSigning) {
 
 android {
     namespace = "com.kixyu9527.fcmcommon"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.kixyu9527.fcmcommon"
-        minSdk = 27
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.4.3"
+        minSdk = 31
+        targetSdk = 37
+        versionCode = 1030
+        versionName = "1.5.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -42,7 +44,8 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -62,8 +65,17 @@ android {
         }
     }
     lint {
-        checkReleaseBuilds = false
+        checkReleaseBuilds = true
+        disable += setOf(
+            "AndroidGradlePluginVersion",
+            "GradleDependency",
+            "NewerVersionAvailable",
+        )
     }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-Xlint:unchecked")
 }
 
 dependencies {
@@ -73,16 +85,20 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigationevent.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
-    implementation("io.github.libxposed:interface:101.0.0")
-    implementation("io.github.libxposed:service:101.0.0")
-    compileOnly("io.github.libxposed:api:101.0.1")
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.icons)
+    implementation(libs.miuix.navigation3.ui)
+    implementation(libs.miuix.preference)
+    implementation(libs.libxposed.`interface`)
+    implementation(libs.libxposed.service)
+    compileOnly(libs.libxposed.api)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

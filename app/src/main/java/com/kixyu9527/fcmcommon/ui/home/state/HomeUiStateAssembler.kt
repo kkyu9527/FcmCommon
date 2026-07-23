@@ -1,7 +1,6 @@
 package com.kixyu9527.fcmcommon.ui.home
 
 import com.kixyu9527.fcmcommon.data.ConnectionEvent
-import com.kixyu9527.fcmcommon.data.FcmDiagnosticsState
 import com.kixyu9527.fcmcommon.data.FeatureKey
 import com.kixyu9527.fcmcommon.data.UiSettings
 import com.kixyu9527.fcmcommon.data.InstalledAppInfo
@@ -58,22 +57,10 @@ internal class HomeUiStateAssembler(
             trackedAppsCount = seed.allowList.size,
             pushCandidateCount = apps.count { it.hasPushSupport },
             scopeStatuses = buildScopeStatuses(seed.connection),
-            connectionDurationLabel = formatDurationFromElapsedRealtime(
-                connectedAtElapsedRealtime = seed.connection.connectedAtElapsedRealtime,
-                nowElapsedRealtime = runtime.nowElapsedRealtime,
-            ),
             connectionSummary = buildConnectionSummary(seed.connection.connectionEvents.firstOrNull()),
             recentConnectionEvents = seed.connection.connectionEvents
                 .take(8)
                 .map(::toConnectionEventModel),
-            fcmDiagnosticsConnected = runtime.diagnosticsState.isConnected ||
-                (runtime.diagnosticsState.connectedSinceMillis != null &&
-                    runtime.diagnosticsState.lastEventTitle == "FCM 已连接"),
-            fcmDiagnosticsDurationLabel = formatDurationFromWallClock(
-                connectedSinceMillis = runtime.diagnosticsState.connectedSinceMillis,
-                nowWallClockMillis = runtime.nowWallClockMillis,
-            ),
-            fcmDiagnosticsSummary = buildFcmDiagnosticsSummary(runtime.diagnosticsState),
             selectedAppDetails = buildSelectedAppDetails(
                 apps = apps,
                 selectedPackageName = seed.selectedAppPackage,
@@ -106,10 +93,7 @@ internal class HomeUiStateAssembler(
         scopeStatuses = buildScopeStatuses(XposedServiceState.bootstrap()),
         appsLoading = shouldBootstrapScan && initialAppsPermissionGranted,
         appsScanned = initialAppsScanned,
-        connectionDurationLabel = "未连接",
         connectionSummary = "暂无记录",
-        fcmDiagnosticsDurationLabel = "未连接",
-        fcmDiagnosticsSummary = "暂无记录",
     )
 
     private fun buildAppRows(
@@ -236,40 +220,6 @@ internal class HomeUiStateAssembler(
     private fun buildConnectionSummary(event: ConnectionEvent?): String {
         if (event == null) return "暂无记录"
         return "${event.type.title} · ${eventTimeFormatter.format(Date(event.recordedAtMillis))}"
-    }
-
-    private fun buildFcmDiagnosticsSummary(state: FcmDiagnosticsState): String {
-        val eventTime = state.lastEventAtMillis?.let { eventTimeFormatter.format(Date(it)) } ?: return "暂无记录"
-        return "${state.lastEventTitle} · $eventTime"
-    }
-
-    private fun formatDurationFromElapsedRealtime(
-        connectedAtElapsedRealtime: Long?,
-        nowElapsedRealtime: Long,
-    ): String {
-        if (connectedAtElapsedRealtime == null) return "未连接"
-        return formatDuration((nowElapsedRealtime - connectedAtElapsedRealtime).coerceAtLeast(0L))
-    }
-
-    private fun formatDurationFromWallClock(
-        connectedSinceMillis: Long?,
-        nowWallClockMillis: Long,
-    ): String {
-        if (connectedSinceMillis == null) return "未连接"
-        return formatDuration((nowWallClockMillis - connectedSinceMillis).coerceAtLeast(0L))
-    }
-
-    private fun formatDuration(durationMillis: Long): String {
-        val totalSeconds = durationMillis / 1_000L
-        val hours = totalSeconds / 3_600L
-        val minutes = (totalSeconds % 3_600L) / 60L
-        val seconds = totalSeconds % 60L
-
-        return when {
-            hours > 0L -> "%d小时 %02d分 %02d秒".format(hours, minutes, seconds)
-            minutes > 0L -> "%d分 %02d秒".format(minutes, seconds)
-            else -> "%d秒".format(seconds)
-        }
     }
 
     private fun Long.toReadableTime(formatter: SimpleDateFormat): String {

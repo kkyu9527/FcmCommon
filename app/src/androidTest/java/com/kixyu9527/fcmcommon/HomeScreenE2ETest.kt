@@ -82,28 +82,22 @@ class HomeScreenE2ETest {
     }
 
     @Test
-    fun recommendedPreset_restoresDefaultFeatureState() {
-        val toggleTag = TestTags.featureToggle(FeatureKey.PowerKeeperBypass)
-
-        composeRule.onNodeWithTag(TestTags.navItem("settings")).performClick()
-        composeRule.onNodeWithTag(TestTags.SettingsFeaturesEntry).performClick()
-        composeRule.onNodeWithTag(toggleTag).performScrollTo().assertIsOn()
-        composeRule.onNodeWithTag(toggleTag).performClick()
-        composeRule.onNodeWithTag(toggleTag).assertIsOff()
-
-        composeRule.onNodeWithTag(TestTags.ActionApplyRecommended).performScrollTo().performClick()
-        composeRule.onNodeWithTag(toggleTag).performScrollTo().assertIsOn()
-    }
-
-    @Test
     fun themeMode_dropdownPersistsAcrossRecreate() {
         composeRule.onNodeWithTag(TestTags.navItem("settings")).performClick()
         composeRule.onNodeWithTag(TestTags.ThemeModeDropdown).performClick()
-        composeRule.onNodeWithTag(TestTags.themeMode(AppThemeMode.Dark)).performClick()
+        composeRule.onNodeWithText(AppThemeMode.Dark.title).performClick()
 
         composeRule.activityRule.scenario.recreate()
 
         composeRule.onNodeWithTag(TestTags.navItem("settings")).performClick()
         composeRule.onNodeWithText(AppThemeMode.Dark.title).assertIsDisplayed()
     }
+
+    @Test
+    fun appsShowAllButton_togglesDisplayScope() {
+        composeRule.onNodeWithTag(TestTags.navItem("apps")).performClick()
+        composeRule.onNodeWithTag(TestTags.AppsShowAllButton).performScrollTo().performClick()
+        composeRule.onNodeWithText("仅显示候选").assertIsDisplayed()
+    }
+
 }

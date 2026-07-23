@@ -1,66 +1,49 @@
 package com.kixyu9527.fcmcommon.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowInsetsControllerCompat
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.LocalContentColor as MiuixLocalContentColor
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
-private val DarkColorScheme = darkColorScheme(
-    primary = NightPrimary,
-    secondary = NightSecondary,
-    tertiary = NightSurfaceAlt,
-    primaryContainer = NightSurfaceAlt,
-    secondaryContainer = NightSurfaceAlt,
-    background = NightBackground,
-    surface = NightSurface,
-    surfaceVariant = NightSurfaceAlt,
-    onPrimary = NightBackground,
-    onSecondary = NightBackground,
-    onTertiary = NightText,
-    onPrimaryContainer = NightText,
-    onSecondaryContainer = NightText,
-    onBackground = NightText,
-    onSurface = NightText,
-    onSurfaceVariant = NightText.copy(alpha = 0.72f),
-    surfaceTint = NightPrimary,
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = AccentBlue,
-    secondary = AccentMint,
-    tertiary = AccentSky,
-    primaryContainer = AccentBlue.copy(alpha = 0.16f),
-    secondaryContainer = AccentMint.copy(alpha = 0.16f),
-    background = Cloud,
-    surface = CardWhite,
-    surfaceVariant = Frost,
-    onPrimary = CardWhite,
-    onSecondary = CardWhite,
-    onTertiary = Ink,
-    onPrimaryContainer = Ink,
-    onSecondaryContainer = Ink,
-    onBackground = Ink,
-    onSurface = Ink,
-    onSurfaceVariant = Ink.copy(alpha = 0.62f),
-    surfaceTint = AccentBlue,
-)
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
 
 @Composable
 fun FcmCommonTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val context = LocalContext.current
+    val controller = remember(darkTheme) {
+        ThemeController(
+            colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
+            isDark = darkTheme,
+        )
+    }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
+    MiuixTheme(
+        controller = controller,
+        smoothRounding = true,
     ) {
+        LaunchedEffect(darkTheme) {
+            val window = (context as? Activity)?.window ?: return@LaunchedEffect
+            WindowInsetsControllerCompat(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+
         CompositionLocalProvider(
-            LocalContentColor provides colorScheme.onBackground,
+            LocalIsDarkTheme provides darkTheme,
+            MiuixLocalContentColor provides MiuixTheme.colorScheme.onBackground,
             content = content,
         )
     }

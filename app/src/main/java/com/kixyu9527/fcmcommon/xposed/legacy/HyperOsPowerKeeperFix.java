@@ -58,6 +58,7 @@ public class HyperOsPowerKeeperFix extends LegacyHookModule {
         });
     }
 
+    @SuppressWarnings("unchecked")
     private void hookGlobalFeatureConfigureHelper() {
         try {
             Class<?> clazz = XposedHelpers.findClass(

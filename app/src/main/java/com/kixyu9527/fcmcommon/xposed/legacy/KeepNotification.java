@@ -1,5 +1,6 @@
 package com.kixyu9527.fcmcommon.xposed.legacy;
 
+import android.annotation.SuppressLint;
 import android.os.Build;
 import android.service.notification.NotificationListenerService;
 
@@ -9,6 +10,7 @@ import com.kixyu9527.fcmcommon.xposed.compat.XposedHelpers;
 
 import java.lang.reflect.Method;
 
+@SuppressLint("ObsoleteSdkInt")
 public class KeepNotification extends LegacyHookModule {
 
     public KeepNotification(ClassLoader classLoader) {

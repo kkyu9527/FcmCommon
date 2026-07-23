@@ -17,10 +17,5 @@ object ConfigKeys {
     const val KeyHasCompletedInitialScan = "has_completed_initial_scan"
     const val KeyInstalledAppsCache = "installed_apps_cache"
     const val KeyConnectionEvents = "connection_events"
-    const val KeyFcmDiagnosticsConnected = "fcm_diagnostics_connected"
-    const val KeyFcmDiagnosticsConnectedSince = "fcm_diagnostics_connected_since"
-    const val KeyFcmDiagnosticsLastEventAt = "fcm_diagnostics_last_event_at"
-    const val KeyFcmDiagnosticsLastEventTitle = "fcm_diagnostics_last_event_title"
-    const val KeyFcmDiagnosticsLastEventDetail = "fcm_diagnostics_last_event_detail"
     const val UpdateConfigAction = "com.kixyu9527.fcmcommon.UPDATE_CONFIG"
 }

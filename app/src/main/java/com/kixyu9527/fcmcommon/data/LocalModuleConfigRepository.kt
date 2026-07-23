@@ -77,10 +77,6 @@ class LocalModuleConfigRepository(context: Context) {
         updateConfig(mutableConfig.value.withAllowedPackage(packageName, allowed))
     }
 
-    fun applyRecommendedFeatures() {
-        updateConfig(mutableConfig.value.withEnabledFeatures(FeatureKey.defaultEnabledSet))
-    }
-
     fun replaceAllowList(packageNames: Set<String>) {
         updateConfig(mutableConfig.value.withAllowList(packageNames))
     }

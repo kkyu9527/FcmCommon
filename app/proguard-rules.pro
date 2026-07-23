@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Loaded by libxposed from META-INF/xposed/java_init.list rather than a code reference.
+-keep class com.kixyu9527.fcmcommon.xposed.FcmCommonModule { *; }

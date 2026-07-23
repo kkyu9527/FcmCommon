@@ -9,7 +9,6 @@ import com.kixyu9527.fcmcommon.data.FeatureKey
 import java.text.Collator
 import java.text.SimpleDateFormat
 import java.util.Locale
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -22,7 +21,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val uiSettingsRepository = container.uiSettingsRepository
     private val appsRepository = container.installedAppsRepository
     private val serviceMonitor = container.xposedServiceMonitor
-    private val fcmDiagnosticsRepository = container.fcmDiagnosticsStateRepository
     private val uiStateAssembler = HomeUiStateAssembler(
         nameCollator = Collator.getInstance(Locale.CHINA),
         eventTimeFormatter = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA),
@@ -33,7 +31,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val initialCachedAppsSnapshot = appsRepository.loadCachedInstalledAppsSnapshot()
     private val initialAppsPermissionGranted = appsRepository.canReadInstalledApps()
     private val initialAppsScanned = initialCachedAppsSnapshot.hasSnapshot
-    private val initialDiagnosticsState = fcmDiagnosticsRepository.loadState()
     private val shouldBootstrapScan =
         !initialSettings.hasCompletedInitialScan || !initialCachedAppsSnapshot.hasSnapshot
 
@@ -43,7 +40,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         initialApps = initialCachedAppsSnapshot.apps,
         initialAppsScanned = initialAppsScanned,
         shouldBootstrapScan = shouldBootstrapScan,
-        initialDiagnosticsState = initialDiagnosticsState,
     )
 
     private val uiSeed = combine(
@@ -83,7 +79,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     init {
-        startClockTicker()
         bootstrapRefresh()
     }
 
@@ -109,19 +104,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         navigationState.openAppDetails(packageName)
     }
 
-    fun navigateBack() {
-        navigationState.navigateBack()
+    fun syncNavigation(
+        page: AppPage,
+        secondaryPage: SecondaryPage?,
+        tertiaryPage: TertiaryPage?,
+        selectedAppPackage: String?,
+    ) {
+        navigationState.syncNavigation(
+            page = page,
+            secondary = secondaryPage,
+            tertiary = tertiaryPage,
+            appPackage = selectedAppPackage,
+        )
     }
 
     fun setFeatureEnabled(featureKey: FeatureKey, enabled: Boolean) {
         viewModelScope.launch {
             configRepository.setFeatureEnabled(featureKey, enabled)
-        }
-    }
-
-    fun applyRecommendedFeatures() {
-        viewModelScope.launch {
-            configRepository.applyRecommendedFeatures()
         }
     }
 
@@ -180,12 +179,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refreshAll() {
-        viewModelScope.launch {
-            configRepository.refresh()
-        }
-    }
-
     fun refreshApps() {
         viewModelScope.launch {
             if (runtimeState.canReadInstalledApps()) {
@@ -201,15 +194,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             configRepository.refresh()
             hydrateCachedIconsIfNeeded()
             refreshAppsPermissionState(triggerScanIfNeeded = shouldBootstrapScan)
-        }
-    }
-
-    private fun startClockTicker() {
-        viewModelScope.launch {
-            while (true) {
-                runtimeState.tick(fcmDiagnosticsRepository.loadState())
-                delay(1_000L)
-            }
         }
     }
 

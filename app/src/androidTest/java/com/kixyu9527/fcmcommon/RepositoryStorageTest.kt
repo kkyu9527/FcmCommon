@@ -7,7 +7,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kixyu9527.fcmcommon.data.ConfigKeys
 import com.kixyu9527.fcmcommon.data.ConnectionEventRepository
 import com.kixyu9527.fcmcommon.data.ConnectionEventType
-import com.kixyu9527.fcmcommon.data.FcmDiagnosticsStateRepository
 import com.kixyu9527.fcmcommon.data.FeatureKey
 import com.kixyu9527.fcmcommon.data.InstalledAppsRepository
 import com.kixyu9527.fcmcommon.data.LocalModuleConfigRepository
@@ -144,7 +143,7 @@ class RepositoryStorageTest {
     }
 
     @Test
-    fun connectionAndDiagnosticsRepositories_handleCompatibilityFallbacks() {
+    fun connectionRepository_handlesCompatibilityFallbacks() {
         val eventsPayload = JSONArray()
             .put(
                 JSONObject().apply {
@@ -165,23 +164,12 @@ class RepositoryStorageTest {
             Context.MODE_PRIVATE,
         ).edit(commit = true) {
             putString(ConfigKeys.KeyConnectionEvents, eventsPayload.toString())
-            putBoolean(ConfigKeys.KeyFcmDiagnosticsConnected, true)
-            putLong(ConfigKeys.KeyFcmDiagnosticsConnectedSince, 0L)
-            putLong(ConfigKeys.KeyFcmDiagnosticsLastEventAt, 0L)
-            putString(ConfigKeys.KeyFcmDiagnosticsLastEventTitle, "")
-            putString(ConfigKeys.KeyFcmDiagnosticsLastEventDetail, "")
         }
 
         val events = ConnectionEventRepository(storageContext).loadEvents()
-        val diagnostics = FcmDiagnosticsStateRepository(storageContext).loadState()
 
         assertEquals(1, events.size)
         assertEquals(ConnectionEventType.Connected, events.single().type)
         assertEquals("bridge_ready", events.single().detail)
-        assertTrue(diagnostics.isConnected)
-        assertNull(diagnostics.connectedSinceMillis)
-        assertNull(diagnostics.lastEventAtMillis)
-        assertEquals("暂无记录", diagnostics.lastEventTitle)
-        assertEquals("等待 Google Play 服务上报连接状态。", diagnostics.lastEventDetail)
     }
 }

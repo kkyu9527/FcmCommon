@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
+@SuppressLint("ObsoleteSdkInt")
 public class HyperOsSystemFix extends LegacyHookModule {
     private static final List<String> CN_DEFER_BROADCAST = Arrays.asList(
         "com.google.android.intent.action.GCM_RECONNECT",
@@ -25,8 +26,6 @@ public class HyperOsSystemFix extends LegacyHookModule {
         "com.google.android.gms.gcm.HEARTBEAT_ALARM"
     );
     private static final String ACTION_REMOTE_INTENT = "com.google.android.c2dm.intent.RECEIVE";
-    private static final String ACTION_GCM_CONNECTED = "com.google.android.gcm.CONNECTED";
-    private static final String ACTION_GCM_DISCONNECTED = "com.google.android.gcm.DISCONNECTED";
     private static final String GMS_PACKAGE_NAME = "com.google.android.gms";
     private static final String GMS_PERSISTENT_PROCESS_NAME = "com.google.android.gms.persistent";
 
@@ -155,6 +154,7 @@ public class HyperOsSystemFix extends LegacyHookModule {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void hookListAppsManager() {
         try {
             Class<?> clazz = XposedHelpers.findClass("com.miui.server.greeze.power.ListAppsManager", classLoader);
@@ -183,6 +183,7 @@ public class HyperOsSystemFix extends LegacyHookModule {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void hookProcessPolicy() {
         try {
             Class<?> clazz = XposedHelpers.findClass("com.android.server.am.ProcessPolicy", classLoader);
@@ -212,6 +213,7 @@ public class HyperOsSystemFix extends LegacyHookModule {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void hookAwareResourceControl() {
         try {
             Class<?> clazz = XposedHelpers.findClass("com.miui.server.greeze.power.AwareResourceControl", classLoader);
@@ -349,9 +351,7 @@ public class HyperOsSystemFix extends LegacyHookModule {
                         return;
                     }
                     String action = intent.getAction();
-                    if (!ACTION_REMOTE_INTENT.equals(action)
-                        && !ACTION_GCM_CONNECTED.equals(action)
-                        && !ACTION_GCM_DISCONNECTED.equals(action)) {
+                    if (!ACTION_REMOTE_INTENT.equals(action)) {
                         return;
                     }
 
@@ -366,19 +366,6 @@ public class HyperOsSystemFix extends LegacyHookModule {
                         }
                     } catch (Throwable throwable) {
                         printLog("识别 GMS 调用者失败: " + throwable.getMessage());
-                        return;
-                    }
-
-                    if (ACTION_GCM_CONNECTED.equals(action)) {
-                        recordFcmDiagnosticsState(true, "Google Play 服务发出了 FCM 已连接广播。");
-                        return;
-                    }
-
-                    if (ACTION_GCM_DISCONNECTED.equals(action)) {
-                        recordFcmDiagnosticsState(
-                            false,
-                            buildDisconnectDetail(intent.getExtras())
-                        );
                         return;
                     }
 
@@ -401,19 +388,6 @@ public class HyperOsSystemFix extends LegacyHookModule {
         } catch (Throwable throwable) {
             printLog("Failed to hook ActivityManagerService: " + throwable.getMessage());
         }
-    }
-
-    private String buildDisconnectDetail(Bundle extras) {
-        if (extras == null || extras.isEmpty()) {
-            return "Google Play 服务发出了 FCM 已断开广播。";
-        }
-        for (String key : Arrays.asList("reason", "error", "message")) {
-            Object value = extras.get(key);
-            if (value != null) {
-                return "Google Play 服务断连: " + value;
-            }
-        }
-        return "Google Play 服务发出了 FCM 已断开广播。";
     }
 
     @SuppressLint({"PrivateApi", "WrongConstant"})

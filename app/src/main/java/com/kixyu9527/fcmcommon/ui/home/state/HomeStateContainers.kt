@@ -1,7 +1,5 @@
 package com.kixyu9527.fcmcommon.ui.home
 
-import android.os.SystemClock
-import com.kixyu9527.fcmcommon.data.FcmDiagnosticsState
 import com.kixyu9527.fcmcommon.data.FeatureKey
 import com.kixyu9527.fcmcommon.data.InstalledAppInfo
 import com.kixyu9527.fcmcommon.data.UiSettings
@@ -34,22 +32,6 @@ internal data class HomeRuntimeSeed(
     val canReadInstalledApps: Boolean,
     val appsLoading: Boolean,
     val appsScanned: Boolean,
-    val nowElapsedRealtime: Long,
-    val nowWallClockMillis: Long,
-    val diagnosticsState: FcmDiagnosticsState,
-)
-
-private data class HomeAppRuntimeSeed(
-    val apps: List<InstalledAppInfo>,
-    val canReadInstalledApps: Boolean,
-    val appsLoading: Boolean,
-    val appsScanned: Boolean,
-)
-
-private data class HomeClockSeed(
-    val nowElapsedRealtime: Long,
-    val nowWallClockMillis: Long,
-    val diagnosticsState: FcmDiagnosticsState,
 )
 
 internal class HomeNavigationStateContainer {
@@ -98,16 +80,20 @@ internal class HomeNavigationStateContainer {
         secondaryPage.value = SecondaryPage.AppDetails(packageName)
     }
 
-    fun navigateBack() {
-        if (tertiaryPage.value != null) {
-            tertiaryPage.value = null
-        } else {
-            secondaryPage.value = null
-        }
-    }
-
     fun setSearchQuery(query: String) {
         searchQuery.value = query
+    }
+
+    fun syncNavigation(
+        page: AppPage,
+        secondary: SecondaryPage?,
+        tertiary: TertiaryPage?,
+        appPackage: String?,
+    ) {
+        selectedPage.value = page
+        secondaryPage.value = secondary
+        tertiaryPage.value = tertiary
+        selectedAppPackage.value = appPackage
     }
 }
 
@@ -116,50 +102,22 @@ internal class HomeRuntimeStateContainer(
     initialApps: List<InstalledAppInfo>,
     initialAppsScanned: Boolean,
     shouldBootstrapScan: Boolean,
-    initialDiagnosticsState: FcmDiagnosticsState,
 ) {
     private val appsPermissionGranted = MutableStateFlow(initialAppsPermissionGranted)
     private val installedApps = MutableStateFlow(initialApps)
     private val appsLoading = MutableStateFlow(shouldBootstrapScan && initialAppsPermissionGranted)
     private val appsScanned = MutableStateFlow(initialAppsScanned)
-    private val clockNow = MutableStateFlow(SystemClock.elapsedRealtime())
-    private val wallClockNow = MutableStateFlow(System.currentTimeMillis())
-    private val fcmDiagnosticsState = MutableStateFlow(initialDiagnosticsState)
-
     val seed = combine(
-        combine(
-            installedApps,
-            appsPermissionGranted,
-            appsLoading,
-            appsScanned,
-        ) { apps, canReadInstalledApps, loading, scanned ->
-            HomeAppRuntimeSeed(
-                apps = apps,
-                canReadInstalledApps = canReadInstalledApps,
-                appsLoading = loading,
-                appsScanned = scanned,
-            )
-        },
-        combine(
-            clockNow,
-            wallClockNow,
-            fcmDiagnosticsState,
-        ) { nowElapsedRealtime, nowWallClockMillis, diagnosticsState ->
-            HomeClockSeed(
-                nowElapsedRealtime = nowElapsedRealtime,
-                nowWallClockMillis = nowWallClockMillis,
-                diagnosticsState = diagnosticsState,
-            )
-        },
-    ) { appRuntime, clock ->
+        installedApps,
+        appsPermissionGranted,
+        appsLoading,
+        appsScanned,
+    ) { apps, canReadInstalledApps, loading, scanned ->
         HomeRuntimeSeed(
-            apps = appRuntime.apps,
-            canReadInstalledApps = appRuntime.canReadInstalledApps,
-            appsLoading = appRuntime.appsLoading,
-            appsScanned = appRuntime.appsScanned,
-            nowElapsedRealtime = clock.nowElapsedRealtime,
-            nowWallClockMillis = clock.nowWallClockMillis,
-            diagnosticsState = clock.diagnosticsState,
+            apps = apps,
+            canReadInstalledApps = canReadInstalledApps,
+            appsLoading = loading,
+            appsScanned = scanned,
         )
     }
 
@@ -191,11 +149,5 @@ internal class HomeRuntimeStateContainer(
 
     fun setInstalledApps(apps: List<InstalledAppInfo>) {
         installedApps.value = apps
-    }
-
-    fun tick(diagnosticsState: FcmDiagnosticsState) {
-        clockNow.value = SystemClock.elapsedRealtime()
-        wallClockNow.value = System.currentTimeMillis()
-        fcmDiagnosticsState.value = diagnosticsState
     }
 }

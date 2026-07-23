@@ -1,307 +1,50 @@
 package com.kixyu9527.fcmcommon.ui.home
 
-import androidx.activity.BackEventCompat
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-
-private val OverlayBackdropEasing = CubicBezierEasing(0.2f, 0.9f, 0.2f, 1f)
-private val SecondaryPageEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
-private const val OverlayOpenOffsetFraction = 0.14f
-private const val OverlayCloseTravelMultiplier = 1.08f
-private const val OverlayBaseParallaxFraction = 0.03f
-private const val PreferredHighRefreshRate = 120f
-private const val OverlayDismissThreshold = 0.001f
+import top.yukonga.miuix.kmp.basic.InputField
+import top.yukonga.miuix.kmp.basic.Scaffold
 
 @Composable
 internal fun HomeContentHost(
     uiState: HomeUiState,
     pagerState: PagerState,
-    pagerNavigator: HomePagerNavigator,
-    predictiveBackState: HomePredictiveBackState,
     listStates: HomePageListStates,
     actions: HomeScaffoldActions,
 ) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val pageWidth = with(LocalDensity.current) { maxWidth.toPx() }
-        val offscreenOffset = with(LocalDensity.current) { 36.dp.toPx() }
-        val closeTravelDistance = (pageWidth * OverlayCloseTravelMultiplier) + offscreenOffset
-        var renderedSecondaryPage by remember { mutableStateOf(uiState.secondaryPage) }
-        var renderedTertiaryPage by remember { mutableStateOf(uiState.tertiaryPage) }
-        val secondaryVisible = uiState.secondaryPage != null
-        val tertiaryVisible = uiState.tertiaryPage != null
-        val latestSelectedPage by rememberUpdatedState(uiState.selectedPage)
-        val latestSecondaryPage by rememberUpdatedState(uiState.secondaryPage)
-        val latestTertiaryPage by rememberUpdatedState(uiState.tertiaryPage)
-        val predictiveDirection = if (predictiveBackState.swipeEdge == BackEventCompat.EDGE_RIGHT) {
-            -1f
-        } else {
-            1f
-        }
-        val secondaryOverlayProgress by animateFloatAsState(
-            targetValue = if (secondaryVisible) 1f else 0f,
-            animationSpec = tween(
-                durationMillis = if (secondaryVisible) 360 else 420,
-                easing = SecondaryPageEasing,
-            ),
-            label = "secondary_page_overlay",
-        )
-        val tertiaryOverlayProgress by animateFloatAsState(
-            targetValue = if (tertiaryVisible) 1f else 0f,
-            animationSpec = tween(
-                durationMillis = if (tertiaryVisible) 360 else 420,
-                easing = SecondaryPageEasing,
-            ),
-            label = "tertiary_page_overlay",
-        )
-
-        LaunchedEffect(uiState.secondaryPage) {
-            if (uiState.secondaryPage != null) {
-                renderedSecondaryPage = uiState.secondaryPage
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }
+            .distinctUntilChanged()
+            .collectLatest { settledPage ->
+                actions.onPageSelected(pageAtIndex(settledPage))
             }
-        }
-
-        LaunchedEffect(uiState.tertiaryPage) {
-            if (uiState.tertiaryPage != null) {
-                renderedTertiaryPage = uiState.tertiaryPage
-            }
-        }
-
-        LaunchedEffect(
-            secondaryVisible,
-            secondaryOverlayProgress,
-            renderedSecondaryPage,
-        ) {
-            if (
-                !secondaryVisible &&
-                renderedSecondaryPage != null &&
-                secondaryOverlayProgress <= OverlayDismissThreshold
-            ) {
-                renderedSecondaryPage = null
-            }
-        }
-
-        LaunchedEffect(
-            tertiaryVisible,
-            tertiaryOverlayProgress,
-            renderedTertiaryPage,
-        ) {
-            if (
-                !tertiaryVisible &&
-                renderedTertiaryPage != null &&
-                tertiaryOverlayProgress <= OverlayDismissThreshold
-            ) {
-                renderedTertiaryPage = null
-            }
-        }
-
-        LaunchedEffect(
-            predictiveBackState.committed,
-            predictiveBackState.target,
-            secondaryVisible,
-            tertiaryVisible,
-            renderedSecondaryPage,
-            renderedTertiaryPage,
-        ) {
-            if (!predictiveBackState.committed) return@LaunchedEffect
-
-            when (predictiveBackState.target) {
-                PredictiveBackTarget.Secondary -> {
-                    if (!secondaryVisible && renderedSecondaryPage == null) {
-                        predictiveBackState.reset()
-                    }
-                }
-
-                PredictiveBackTarget.Tertiary -> {
-                    if (!tertiaryVisible && renderedTertiaryPage == null) {
-                        predictiveBackState.reset()
-                    }
-                }
-
-                null -> Unit
-            }
-        }
-
-        LaunchedEffect(pagerState) {
-            snapshotFlow { pagerState.settledPage }
-                .distinctUntilChanged()
-                .collect { settledPage ->
-                    pagerNavigator.syncPage()
-                    if (latestSecondaryPage == null && latestTertiaryPage == null) {
-                        val targetPage = pageAtIndex(settledPage)
-                        if (targetPage != latestSelectedPage) {
-                            actions.onPageSelected(targetPage)
-                        }
-                    }
-                }
-        }
-
-        val secondaryOverlayTranslationX = if (
-            predictiveBackState.target == PredictiveBackTarget.Secondary &&
-            (predictiveBackState.isActive || predictiveBackState.committed)
-        ) {
-            closeTravelDistance * predictiveBackState.progress * predictiveDirection
-        } else {
-            overlayTranslationX(
-                overlayVisible = secondaryVisible,
-                overlayProgress = secondaryOverlayProgress,
-                pageWidth = pageWidth,
-                offscreenOffset = offscreenOffset,
-            )
-        }
-        val tertiaryOverlayTranslationX = if (
-            predictiveBackState.target == PredictiveBackTarget.Tertiary &&
-            (predictiveBackState.isActive || predictiveBackState.committed)
-        ) {
-            closeTravelDistance * predictiveBackState.progress * predictiveDirection
-        } else {
-            overlayTranslationX(
-                overlayVisible = tertiaryVisible,
-                overlayProgress = tertiaryOverlayProgress,
-                pageWidth = pageWidth,
-                offscreenOffset = offscreenOffset,
-            )
-        }
-        val baseLayerProgress = when {
-            predictiveBackState.target == PredictiveBackTarget.Secondary &&
-                (predictiveBackState.isActive || predictiveBackState.committed) -> {
-                (1f - predictiveBackState.progress).coerceIn(0f, 1f)
-            }
-
-            predictiveBackState.target == PredictiveBackTarget.Tertiary &&
-                (predictiveBackState.isActive || predictiveBackState.committed) -> {
-                if (renderedSecondaryPage != null || secondaryVisible) 1f else 0f
-            }
-
-            renderedTertiaryPage != null || tertiaryVisible -> tertiaryOverlayProgress
-            renderedSecondaryPage != null || secondaryVisible -> secondaryOverlayProgress
-            else -> 0f
-        }.coerceIn(0f, 1f)
-        val easedBaseLayerProgress = OverlayBackdropEasing.transform(baseLayerProgress)
-        val baseLayerTranslationX = -pageWidth *
-            OverlayBaseParallaxFraction *
-            easedBaseLayerProgress
-        val prefersHighRefreshRate =
-            pagerNavigator.isNavigating ||
-                predictiveBackState.isActive ||
-                predictiveBackState.committed ||
-                (secondaryVisible && secondaryOverlayProgress < 1f) ||
-                (!secondaryVisible && secondaryOverlayProgress > 0f) ||
-                (tertiaryVisible && tertiaryOverlayProgress < 1f) ||
-                (!tertiaryVisible && tertiaryOverlayProgress > 0f)
-        val contentModifier = if (prefersHighRefreshRate) {
-            Modifier
-                .fillMaxSize()
-                .clipToBounds()
-                .preferredFrameRate(PreferredHighRefreshRate)
-        } else {
-            Modifier
-                .fillMaxSize()
-                .clipToBounds()
-        }
-
-        Box(modifier = contentModifier) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = baseLayerTranslationX
-                    },
-            ) {
-                TopLevelPageContent(
-                    uiState = uiState,
-                    pagerState = pagerState,
-                    listStates = listStates,
-                    actions = actions,
-                )
-            }
-
-            if (renderedSecondaryPage != null || secondaryOverlayProgress > 0f) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(1f)
-                        .graphicsLayer {
-                            alpha = 1f
-                            translationX = secondaryOverlayTranslationX
-                        },
-                    color = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.onBackground,
-                    tonalElevation = 0.dp,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background),
-                    ) {
-                        renderedSecondaryPage?.let { secondaryPage ->
-                            SecondaryPageContent(
-                                page = secondaryPage,
-                                uiState = uiState,
-                                listStates = listStates,
-                                actions = actions,
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (renderedTertiaryPage != null || tertiaryOverlayProgress > 0f) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(2f)
-                        .graphicsLayer {
-                            alpha = 1f
-                            translationX = tertiaryOverlayTranslationX
-                        },
-                    color = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.onBackground,
-                    tonalElevation = 0.dp,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background),
-                    ) {
-                        renderedTertiaryPage?.let { tertiaryPage ->
-                            TertiaryPageContent(
-                                page = tertiaryPage,
-                                uiState = uiState,
-                                listState = listStates.moduleLogs,
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
+
+    TopLevelPageContent(
+        uiState = uiState,
+        pagerState = pagerState,
+        listStates = listStates,
+        actions = actions,
+    )
 }
 
 @Composable
@@ -315,31 +58,90 @@ private fun TopLevelPageContent(
         state = pagerState,
         modifier = Modifier.fillMaxSize(),
         beyondViewportPageCount = 1,
-        userScrollEnabled = uiState.secondaryPage == null,
     ) { page ->
-        when (pageAtIndex(page)) {
-            AppPage.Overview -> OverviewPage(
+        val pageModel = pageAtIndex(page)
+        val isCurrentPage = page == pagerState.currentPage
+
+        when (pageModel) {
+            AppPage.Overview -> OverviewTopLevelPage(
+                uiState = uiState,
                 listState = listStates.overview,
-                uiState = uiState,
-                onRefreshAll = actions.onRefreshAll,
-                onApplyRecommendedFeatures = actions.onApplyRecommendedFeatures,
+                isCurrentPage = isCurrentPage,
             )
-
-            AppPage.Apps -> AppsPage(
+            AppPage.Apps -> AppsTopLevelPage(
+                uiState = uiState,
                 listState = listStates.apps,
-                uiState = uiState,
-                onSearchQueryChanged = actions.onSearchQueryChanged,
-                onOnlyPushAppsChanged = actions.onOnlyPushAppsChanged,
-                onAppAllowedChanged = actions.onAppAllowedChanged,
-                onOpenAppDetails = actions.onOpenAppDetails,
-                onAllowPushCandidates = actions.onAllowPushCandidates,
-                onClearAllowList = actions.onClearAllowList,
-                onRefreshApps = actions.onRefreshApps,
+                actions = actions,
+                isCurrentPage = isCurrentPage,
             )
-
-            AppPage.Settings -> SettingsPage(
-                listState = listStates.settings,
+            AppPage.Settings -> SettingsTopLevelPage(
                 uiState = uiState,
+                listState = listStates.settings,
+                actions = actions,
+                isCurrentPage = isCurrentPage,
+            )
+        }
+    }
+}
+
+@Composable
+private fun OverviewTopLevelPage(
+    uiState: HomeUiState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    isCurrentPage: Boolean,
+) {
+    ProvideHomeScrollBehavior { scrollBehavior ->
+        Scaffold(
+            topBar = {
+                PageHeader(
+                    title = AppPage.Overview.title,
+                    canNavigateBack = false,
+                    onNavigateBack = {},
+                    scrollBehavior = scrollBehavior,
+                    testTagsEnabled = isCurrentPage,
+                )
+            },
+            popupHost = { },
+            contentWindowInsets = WindowInsets.systemBars
+                .add(WindowInsets.displayCutout)
+                .only(WindowInsetsSides.Horizontal),
+        ) { innerPadding ->
+            OverviewPage(
+                listState = listState,
+                uiState = uiState,
+                topPadding = innerPadding.calculateTopPadding(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsTopLevelPage(
+    uiState: HomeUiState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    actions: HomeScaffoldActions,
+    isCurrentPage: Boolean,
+) {
+    ProvideHomeScrollBehavior { scrollBehavior ->
+        Scaffold(
+            topBar = {
+                PageHeader(
+                    title = AppPage.Settings.title,
+                    canNavigateBack = false,
+                    onNavigateBack = {},
+                    scrollBehavior = scrollBehavior,
+                    testTagsEnabled = isCurrentPage,
+                )
+            },
+            popupHost = { },
+            contentWindowInsets = WindowInsets.systemBars
+                .add(WindowInsets.displayCutout)
+                .only(WindowInsetsSides.Horizontal),
+        ) { innerPadding ->
+            SettingsPage(
+                listState = listState,
+                uiState = uiState,
+                topPadding = innerPadding.calculateTopPadding(),
                 onThemeModeChanged = actions.onThemeModeChanged,
                 onOpenAppPreferences = { actions.onOpenSecondaryPage(SecondaryPage.AppPreferences) },
                 onOpenFeatures = { actions.onOpenSecondaryPage(SecondaryPage.Features) },
@@ -350,75 +152,86 @@ private fun TopLevelPageContent(
 }
 
 @Composable
-private fun SecondaryPageContent(
-    page: SecondaryPage,
+private fun AppsTopLevelPage(
     uiState: HomeUiState,
-    listStates: HomePageListStates,
+    listState: androidx.compose.foundation.lazy.LazyListState,
     actions: HomeScaffoldActions,
+    isCurrentPage: Boolean,
 ) {
-    when (page) {
-        SecondaryPage.AppPreferences -> AppPreferencesPage(
-            listState = listStates.appPreferences,
-            uiState = uiState,
-            onOnlyPushAppsChanged = actions.onOnlyPushAppsChanged,
-            onShowSystemAppsChanged = actions.onShowSystemAppsChanged,
-            onShowPackageNameInListChanged = actions.onShowPackageNameInListChanged,
-            onShowDisabledAppsChanged = actions.onShowDisabledAppsChanged,
-        )
-
-        SecondaryPage.Features -> FeatureSettingsPage(
-            listState = listStates.featureSettings,
-            uiState = uiState,
-            onFeatureToggle = actions.onFeatureToggle,
-            onApplyRecommendedFeatures = actions.onApplyRecommendedFeatures,
-        )
-
-        SecondaryPage.Diagnostics -> DiagnosticsPage(
-            listState = listStates.diagnostics,
-            uiState = uiState,
-            onOpenModuleLogs = { actions.onOpenTertiaryPage(TertiaryPage.ModuleLogs) },
-            onRefreshAll = actions.onRefreshAll,
-            onRefreshApps = actions.onRefreshApps,
-        )
-
-        is SecondaryPage.AppDetails -> AppDetailsPage(
-            listState = listStates.appDetails,
-            uiState = uiState,
-            onAppAllowedChanged = actions.onAppAllowedChanged,
-        )
+    ProvideHomeScrollBehavior { scrollBehavior ->
+        Scaffold(
+            topBar = {
+                PageHeader(
+                    title = AppPage.Apps.title,
+                    canNavigateBack = false,
+                    onNavigateBack = {},
+                    scrollBehavior = scrollBehavior,
+                    testTagsEnabled = isCurrentPage,
+                    bottomContent = {
+                        InputField(
+                            query = uiState.appSearchQuery,
+                            onQueryChange = actions.onSearchQueryChanged,
+                            onSearch = { _ -> },
+                            expanded = false,
+                            onExpandedChange = { _ -> },
+                            label = "搜索应用",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    },
+                )
+            },
+            popupHost = { },
+            contentWindowInsets = WindowInsets.systemBars
+                .add(WindowInsets.displayCutout)
+                .only(WindowInsetsSides.Horizontal),
+        ) { innerPadding ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                AppsPage(
+                    listState = listState,
+                    uiState = uiState,
+                    topPadding = innerPadding.calculateTopPadding(),
+                    onAppAllowedChanged = actions.onAppAllowedChanged,
+                    onOpenAppDetails = actions.onOpenAppDetails,
+                    onOnlyPushAppsChanged = actions.onOnlyPushAppsChanged,
+                    onAllowPushCandidates = actions.onAllowPushCandidates,
+                    onClearAllowList = actions.onClearAllowList,
+                    onRefreshApps = actions.onRefreshApps,
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun TertiaryPageContent(
-    page: TertiaryPage,
-    uiState: HomeUiState,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+internal fun HomePageLayer(
+    title: String,
+    canNavigateBack: Boolean,
+    onNavigateBack: () -> Unit,
+    testTagsEnabled: Boolean = true,
+    actions: @Composable RowScope.() -> Unit = {},
+    bottomContent: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit,
 ) {
-    when (page) {
-        TertiaryPage.ModuleLogs -> ModuleLogsPage(
-            listState = listState,
-            uiState = uiState,
-        )
+    ProvideHomeScrollBehavior { scrollBehavior ->
+        Column(modifier = Modifier.fillMaxSize()) {
+            PageHeader(
+                title = title,
+                canNavigateBack = canNavigateBack,
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior,
+                testTagsEnabled = testTagsEnabled,
+                actions = actions,
+                bottomContent = bottomContent,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                content()
+            }
+        }
     }
-}
-
-private fun overlayTranslationX(
-    overlayVisible: Boolean,
-    overlayProgress: Float,
-    pageWidth: Float,
-    offscreenOffset: Float,
-): Float {
-    val openingOffset = if (overlayVisible) {
-        (1f - overlayProgress) * pageWidth * OverlayOpenOffsetFraction
-    } else {
-        0f
-    }
-    val closingOffset = if (!overlayVisible) {
-        ((pageWidth * OverlayCloseTravelMultiplier) + offscreenOffset) * (1f - overlayProgress)
-    } else {
-        0f
-    }
-
-    return if (overlayVisible) openingOffset else closingOffset
 }

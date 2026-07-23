@@ -1,5 +1,6 @@
 package com.kixyu9527.fcmcommon.xposed.legacy;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Build;
 
@@ -11,6 +12,7 @@ import com.kixyu9527.fcmcommon.xposed.compat.XposedUtils;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
+@SuppressLint("ObsoleteSdkInt")
 public class BroadcastFix extends LegacyHookModule {
 
     public BroadcastFix(ClassLoader classLoader) {

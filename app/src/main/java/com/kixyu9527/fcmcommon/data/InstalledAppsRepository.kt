@@ -10,12 +10,12 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.util.LruCache
 import androidx.core.content.edit
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.drawable.toDrawable
 import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -199,7 +199,7 @@ class InstalledAppsRepository(
                 }
                 iconMemoryCache.put(
                     app.packageName,
-                    BitmapDrawable(storageContext.resources, bitmap),
+                    bitmap.toDrawable(storageContext.resources),
                 )
             }
         }
@@ -214,7 +214,7 @@ class InstalledAppsRepository(
         if (!iconFile.exists()) return null
 
         val bitmap = BitmapFactory.decodeFile(iconFile.absolutePath) ?: return null
-        return BitmapDrawable(storageContext.resources, bitmap).also { drawable ->
+        return bitmap.toDrawable(storageContext.resources).also { drawable ->
             iconMemoryCache.put(packageName, drawable)
         }
     }
@@ -232,8 +232,8 @@ class InstalledAppsRepository(
                 val packageInfo = getPackageInfo(packageManager, appInfo.packageName)
                 InstalledAppInfo(
                     packageName = appInfo.packageName,
-                    label = appInfo.loadLabel(packageManager)?.toString()
-                        ?.takeIf { it.isNotBlank() }
+                    label = appInfo.loadLabel(packageManager).toString()
+                        .takeIf { it.isNotBlank() }
                         ?: appInfo.packageName,
                     icon = appInfo.loadIcon(packageManager),
                     isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
@@ -286,21 +286,16 @@ class InstalledAppsRepository(
         }.getOrNull()
     }
 
-    @Suppress("DEPRECATION")
     private fun resolveInstallerPackageName(
         packageManager: PackageManager,
         packageName: String,
     ): String {
         return runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val installSourceInfo: InstallSourceInfo =
-                    packageManager.getInstallSourceInfo(packageName)
-                installSourceInfo.installingPackageName
-                    ?: installSourceInfo.initiatingPackageName
-                    ?: "-"
-            } else {
-                packageManager.getInstallerPackageName(packageName) ?: "-"
-            }
+            val installSourceInfo: InstallSourceInfo =
+                packageManager.getInstallSourceInfo(packageName)
+            installSourceInfo.installingPackageName
+                ?: installSourceInfo.initiatingPackageName
+                ?: "-"
         }.getOrDefault("-")
     }
 
@@ -385,10 +380,5 @@ private fun JSONObject.optNullableInt(key: String): Int? {
 }
 
 private fun PackageInfo.toVersionCode(): Long {
-    @Suppress("DEPRECATION")
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        longVersionCode
-    } else {
-        versionCode.toLong()
-    }
+    return longVersionCode
 }
