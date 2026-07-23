@@ -115,7 +115,7 @@ data class HomeUiState(
     val overviewStats: List<OverviewStatModel> = emptyList(),
     val appRows: List<AppRowModel> = emptyList(),
     val appSearchQuery: String = "",
-    val onlyShowPushApps: Boolean = true,
+    val onlyShowPushApps: Boolean = false,
     val showSystemApps: Boolean = false,
     val showPackageNameInList: Boolean = true,
     val showDisabledApps: Boolean = true,

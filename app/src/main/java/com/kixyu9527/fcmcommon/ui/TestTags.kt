@@ -17,7 +17,7 @@ object TestTags {
     const val ScopeRow = "scope_row"
     const val AppsList = "apps_list"
     const val AppsSearchField = "apps_search_field"
-    const val AppsShowAllButton = "apps_show_all_button"
+    const val AppsShowAllSwitch = "apps_show_all_switch"
     const val BottomBar = "bottom_bar"
     const val ActionOpenPlayServicesDiagnostics = "action_open_play_services_diagnostics"
     const val TopBarBack = "top_bar_back"

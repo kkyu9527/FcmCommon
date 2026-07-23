@@ -20,10 +20,10 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 
 @Composable
 fun AppsPage(
@@ -33,9 +33,6 @@ fun AppsPage(
     onAppAllowedChanged: (String, Boolean) -> Unit,
     onOpenAppDetails: (String) -> Unit,
     onOnlyPushAppsChanged: (Boolean) -> Unit,
-    onAllowPushCandidates: () -> Unit,
-    onClearAllowList: () -> Unit,
-    onRefreshApps: () -> Unit,
 ) {
     PageList(
         state = listState,
@@ -45,12 +42,9 @@ fun AppsPage(
         topPadding = topPadding,
     ) {
         item {
-            AppsToolbarCard(
+            AppsScopeCard(
                 uiState = uiState,
                 onOnlyPushAppsChanged = onOnlyPushAppsChanged,
-                onAllowPushCandidates = onAllowPushCandidates,
-                onClearAllowList = onClearAllowList,
-                onRefreshApps = onRefreshApps,
             )
         }
         appRowsContent(
@@ -98,12 +92,9 @@ private fun LazyListScope.appRowsContent(
 }
 
 @Composable
-private fun AppsToolbarCard(
+private fun AppsScopeCard(
     uiState: HomeUiState,
     onOnlyPushAppsChanged: (Boolean) -> Unit,
-    onAllowPushCandidates: () -> Unit,
-    onClearAllowList: () -> Unit,
-    onRefreshApps: () -> Unit,
 ) {
     val subtitle = buildString {
         append("托管 ${uiState.trackedAppsCount}")
@@ -115,49 +106,23 @@ private fun AppsToolbarCard(
         }
     }
     Column {
-        SmallTitle(text = "快捷操作")
+        SmallTitle(text = "显示范围")
         Card {
             BasicComponent(
-                title = "应用列表",
+                title = "应用概览",
                 summary = subtitle,
-                endActions = {
-                    TextButton(
-                        text = "重新扫描",
-                        onClick = onRefreshApps,
-                    )
-                },
             )
             HorizontalDivider()
-            BasicComponent(
-                title = "显示范围",
+            SwitchPreference(
+                title = "显示所有应用",
                 summary = if (uiState.onlyShowPushApps) {
-                    "当前仅显示推送候选和已托管应用"
+                    "当前仅显示推送候选与已托管应用"
                 } else {
-                    "当前显示符合系统与停用筛选规则的全部应用"
+                    "包含符合系统与停用筛选规则的全部应用"
                 },
-                endActions = {
-                    TextButton(
-                        text = if (uiState.onlyShowPushApps) "显示所有应用" else "仅显示候选",
-                        modifier = Modifier.testTag(TestTags.AppsShowAllButton),
-                        onClick = { onOnlyPushAppsChanged(!uiState.onlyShowPushApps) },
-                    )
-                },
-            )
-            HorizontalDivider()
-            BasicComponent(
-                title = "纳入推送候选",
-                summary = "将本次扫描识别到的候选应用加入托管",
-                endActions = {
-                    TextButton(text = "纳入", onClick = onAllowPushCandidates)
-                },
-            )
-            HorizontalDivider()
-            BasicComponent(
-                title = "清空托管列表",
-                summary = "移除当前全部托管应用",
-                endActions = {
-                    TextButton(text = "清空", onClick = onClearAllowList)
-                },
+                checked = !uiState.onlyShowPushApps,
+                modifier = Modifier.testTag(TestTags.AppsShowAllSwitch),
+                onCheckedChange = { showAll -> onOnlyPushAppsChanged(!showAll) },
             )
         }
     }

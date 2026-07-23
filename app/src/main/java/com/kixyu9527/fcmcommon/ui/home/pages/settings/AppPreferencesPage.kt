@@ -22,6 +22,8 @@ fun AppPreferencesPage(
     onShowSystemAppsChanged: (Boolean) -> Unit,
     onShowPackageNameInListChanged: (Boolean) -> Unit,
     onShowDisabledAppsChanged: (Boolean) -> Unit,
+    onAllowPushCandidates: () -> Unit,
+    onClearAllowList: () -> Unit,
 ) {
     PageList(
         state = listState,
@@ -33,10 +35,10 @@ fun AppPreferencesPage(
                 SmallTitle(text = "应用列表")
                 Card {
                     SwitchPreference(
-                        title = "优先显示推送候选",
-                        summary = "应用页默认优先显示检测到 FCM 的应用",
-                        checked = uiState.onlyShowPushApps,
-                        onCheckedChange = onOnlyPushAppsChanged,
+                        title = "显示所有应用",
+                        summary = "关闭后仅显示推送候选与已托管应用",
+                        checked = !uiState.onlyShowPushApps,
+                        onCheckedChange = { showAll -> onOnlyPushAppsChanged(!showAll) },
                     )
                     HorizontalDivider()
                     BasicComponent(
@@ -66,6 +68,24 @@ fun AppPreferencesPage(
                         summary = "关闭后会隐藏已经停用或冻结的应用",
                         checked = uiState.showDisabledApps,
                         onCheckedChange = onShowDisabledAppsChanged,
+                    )
+                }
+            }
+        }
+        item {
+            Column {
+                SmallTitle(text = "列表管理")
+                Card {
+                    BasicComponent(
+                        title = "纳入全部推送候选",
+                        summary = "将最近一次扫描识别到的候选应用加入托管",
+                        onClick = onAllowPushCandidates,
+                    )
+                    HorizontalDivider()
+                    BasicComponent(
+                        title = "清空托管列表",
+                        summary = "移除当前全部托管应用",
+                        onClick = onClearAllowList,
                     )
                 }
             }

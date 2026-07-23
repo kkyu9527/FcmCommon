@@ -22,7 +22,11 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import top.yukonga.miuix.kmp.basic.InputField
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Refresh
 
 @Composable
 internal fun HomeContentHost(
@@ -167,6 +171,14 @@ private fun AppsTopLevelPage(
                     onNavigateBack = {},
                     scrollBehavior = scrollBehavior,
                     testTagsEnabled = isCurrentPage,
+                    actions = {
+                        IconButton(onClick = actions.onRefreshApps) {
+                            Icon(
+                                imageVector = MiuixIcons.Refresh,
+                                contentDescription = "重新扫描应用",
+                            )
+                        }
+                    },
                     bottomContent = {
                         InputField(
                             query = uiState.appSearchQuery,
@@ -195,9 +207,6 @@ private fun AppsTopLevelPage(
                     onAppAllowedChanged = actions.onAppAllowedChanged,
                     onOpenAppDetails = actions.onOpenAppDetails,
                     onOnlyPushAppsChanged = actions.onOnlyPushAppsChanged,
-                    onAllowPushCandidates = actions.onAllowPushCandidates,
-                    onClearAllowList = actions.onClearAllowList,
-                    onRefreshApps = actions.onRefreshApps,
                 )
             }
         }

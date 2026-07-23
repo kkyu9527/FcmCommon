@@ -94,10 +94,11 @@ class HomeScreenE2ETest {
     }
 
     @Test
-    fun appsShowAllButton_togglesDisplayScope() {
+    fun appsShowAllSwitch_togglesDisplayScope() {
         composeRule.onNodeWithTag(TestTags.navItem("apps")).performClick()
-        composeRule.onNodeWithTag(TestTags.AppsShowAllButton).performScrollTo().performClick()
-        composeRule.onNodeWithText("仅显示候选").assertIsDisplayed()
+        composeRule.onNodeWithTag(TestTags.AppsShowAllSwitch).performScrollTo().assertIsOn()
+        composeRule.onNodeWithTag(TestTags.AppsShowAllSwitch).performClick()
+        composeRule.onNodeWithTag(TestTags.AppsShowAllSwitch).assertIsOff()
     }
 
 }

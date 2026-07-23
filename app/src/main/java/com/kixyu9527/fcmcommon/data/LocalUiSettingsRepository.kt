@@ -45,7 +45,7 @@ class LocalUiSettingsRepository(context: Context) {
         themeMode = preferences.getString(ConfigKeys.KeyThemeMode, null)
             ?.let { saved -> AppThemeMode.entries.firstOrNull { it.name == saved } }
             ?: AppThemeMode.System,
-        onlyShowPushApps = preferences.getBoolean(ConfigKeys.KeyOnlyShowPushApps, true),
+        onlyShowPushApps = preferences.getBoolean(ConfigKeys.KeyOnlyShowPushApps, false),
         showSystemApps = preferences.getBoolean(ConfigKeys.KeyShowSystemApps, false),
         showPackageNameInList = preferences.getBoolean(
             ConfigKeys.KeyShowPackageNameInList,

@@ -128,6 +128,8 @@ fun HomeRoute(
                                 onShowSystemAppsChanged = actions.onShowSystemAppsChanged,
                                 onShowPackageNameInListChanged = actions.onShowPackageNameInListChanged,
                                 onShowDisabledAppsChanged = actions.onShowDisabledAppsChanged,
+                                onAllowPushCandidates = actions.onAllowPushCandidates,
+                                onClearAllowList = actions.onClearAllowList,
                             )
                         }
                     }
